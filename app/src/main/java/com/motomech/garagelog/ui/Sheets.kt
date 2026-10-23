@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Box
 import com.motomech.garagelog.data.AppData
+import com.motomech.garagelog.data.Doc
 import com.motomech.garagelog.data.EXPENSE_CATS
 import com.motomech.garagelog.data.Expense
 import com.motomech.garagelog.data.Level
@@ -82,6 +83,8 @@ sealed interface SheetReq {
     data class Correct(val vid: Long) : SheetReq
     data class Reading(val vid: Long) : SheetReq
     data class PlaceS(val lat: Double, val lon: Double, val label: String) : SheetReq
+    data class Details(val vid: Long) : SheetReq
+    data class DocS(val doc: Doc?, val vid: Long) : SheetReq
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,22 +104,24 @@ fun EntrySheet(d: AppData, req: SheetReq, onClose: () -> Unit) {
                 is SheetReq.Correct -> OdoForm(d, req.vid, correct = true, onClose)
                 is SheetReq.Reading -> OdoForm(d, req.vid, correct = false, onClose)
                 is SheetReq.PlaceS -> PlaceForm(d, req, onClose)
+                is SheetReq.Details -> DetailsForm(d, req.vid, onClose)
+                is SheetReq.DocS -> DocForm(d, req, onClose)
             }
         }
     }
 }
 
 @Composable
-private fun SheetTitle(text: String) = Text(text, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = G.ink)
+internal fun SheetTitle(text: String) = Text(text, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = G.ink)
 
 @Composable
-private fun PrimaryButton(text: String, onClick: () -> Unit) =
+internal fun PrimaryButton(text: String, onClick: () -> Unit) =
     Button(onClick = onClick, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = G.accent)) {
         Text(text, fontSize = 16.sp)
     }
 
 @Composable
-private fun DeleteButton(what: String, onYes: () -> Unit) {
+internal fun DeleteButton(what: String, onYes: () -> Unit) {
     var ask by remember { mutableStateOf(false) }
     TextButton(onClick = { ask = true }, modifier = Modifier.fillMaxWidth()) { Text("Delete $what", color = G.bad) }
     if (ask) Confirm("Delete this $what?", "This can't be undone.", "Delete", onYes) { ask = false }
@@ -158,10 +163,10 @@ private fun clickSource(onClick: () -> Unit): MutableInteractionSource {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DateField(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier) {
+fun DateField(value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, label: String = "Date") {
     var open by remember { mutableStateOf(false) }
     val shown = runCatching { com.motomech.garagelog.data.fdate(value) }.getOrDefault(value)
-    OutlinedTextField(value = shown, onValueChange = {}, readOnly = true, label = { Text("Date") }, singleLine = true,
+    OutlinedTextField(value = shown, onValueChange = {}, readOnly = true, label = { Text(label) }, singleLine = true,
         modifier = modifier, interactionSource = clickSource { open = true })
     if (open) {
         val millis = parseDate(value).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
@@ -180,7 +185,7 @@ fun DateField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
 }
 
 @Composable
-private fun CheckRow(text: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun CheckRow(text: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Checkbox(checked, onChange)
         Text(text, color = G.ink, fontSize = 15.sp)

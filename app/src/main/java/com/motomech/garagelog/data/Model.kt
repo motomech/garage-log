@@ -14,9 +14,46 @@ data class Vehicle(
     val odo: Double = 0.0,
     val btAddress: String? = null,
     val btName: String? = null,
+    // Details. All optional; blank means not filled in.
+    val plate: String = "",
+    val plateState: String = "",
+    val vin: String = "",
+    val color: String = "",
+    val engine: String = "",
+    val tires: String = "",
+    val oil: String = "",
+    val insurer: String = "",
+    val policy: String = "",
+    val bought: String? = null,
+    val price: Double? = null,
+    val notes: String = "",
+    val custom: List<VField> = emptyList(),
 ) {
     val label: String get() = model.ifBlank { listOf(year, make).filter { it.isNotBlank() }.joinToString(" ").ifBlank { "Vehicle" } }
     val subtitle: String get() = listOf(year, make).filter { it.isNotBlank() }.joinToString(" ")
+}
+
+/** A detail field the user named themselves, like a gate code. */
+@Serializable
+data class VField(val label: String, val value: String)
+
+/** One stored file of a document: a photo (JPEG) or a PDF, kept in the app's docs folder. */
+@Serializable
+data class DocPage(val file: String, val pdf: Boolean = false)
+
+/** A registration, insurance card or other paper kept for a vehicle. */
+@Serializable
+data class Doc(
+    val id: Long,
+    val vid: Long,
+    val type: String,
+    val name: String = "",
+    val pages: List<DocPage> = emptyList(),
+    val added: String,
+    val expires: String? = null,
+    val remind: Boolean = true,
+) {
+    val label: String get() = name.ifBlank { type }
 }
 
 object TripKind {
@@ -164,6 +201,7 @@ data class AppData(
     val parts: List<Part> = emptyList(),
     val places: List<Place> = emptyList(),
     val lastStop: LastStop? = null,
+    val docs: List<Doc> = emptyList(),
     val nextId: Long = 1,
     val lastActive: Long? = null,
     val connectedAddress: String? = null,
@@ -189,3 +227,4 @@ val PART_NAMES = listOf(
     "Serpentine belt", "Floor mats", "Fuses",
 )
 val EXPENSE_CATS = listOf("Tires", "Insurance", "Registration and fees", "Parking and tolls", "Other")
+val DOC_TYPES = listOf("Registration", "Insurance card", "Title", "Smog / inspection", "Warranty", "Receipt", "Other")

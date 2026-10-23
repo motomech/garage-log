@@ -89,6 +89,7 @@ sealed interface Page {
     data class VehicleP(val vid: Long) : Page
     data class LinkP(val vid: Long?) : Page
     data object DataP : Page
+    data class DocP(val id: Long) : Page
     data class TripP(val tripId: Long) : Page
     data object RoutesP : Page
     data object PlacesP : Page
@@ -133,6 +134,7 @@ fun AppUi() {
         page = when {
             p is Page.LinkP && p.vid != null -> Page.VehicleP(p.vid)
             p is Page.TripP -> d.trips.firstOrNull { it.id == p.tripId }?.let { Page.VehicleP(it.vid) }
+            p is Page.DocP -> d.docs.firstOrNull { it.id == p.id }?.let { Page.VehicleP(it.vid) }
             else -> null
         }
     }
@@ -209,6 +211,7 @@ fun AppUi() {
                     is Page.TripP -> TripScreen(d, p.tripId)
                     Page.RoutesP -> RoutesScreen(d)
                     Page.PlacesP -> PlacesScreen(d)
+                    is Page.DocP -> DocScreen(d, p.id)
                     null -> when (tab) {
                         Tab.GARAGE -> GarageScreen(d)
                         Tab.FUEL -> if (fv == null) NoVehicles() else FuelScreen(d, fv) { fuelVid = it }
