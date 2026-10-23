@@ -24,10 +24,11 @@ fun AppData.placeAt(lat: Double?, lon: Double?): Place? {
         .filter { (p, d) -> d <= p.radiusM }.minByOrNull { it.second }?.first
 }
 
-fun AppData.startLabel(t: Trip): String? = placeAt(t.fromLat, t.fromLon)?.name ?: endLabelAt(t.fromLat, t.fromLon)
+fun AppData.startLabel(t: Trip): String? =
+    placeAt(t.fromLat, t.fromLon)?.name ?: endLabelAt(t.fromLat, t.fromLon) ?: t.fromAddr
 
 fun AppData.endLabel(t: Trip): String? =
-    placeAt(t.toLat, t.toLon)?.name ?: t.toStation ?: t.toAddr?.let { "near $it" } ?: if (t.toLat != null) "unsaved spot" else null
+    placeAt(t.toLat, t.toLon)?.name ?: t.toStation ?: t.toAddr?.let { if (t.src != null) it else "near $it" } ?: if (t.toLat != null) "unsaved spot" else null
 
 /** A trip start has no lookup of its own; borrow the label of an earlier trip that ended at the same spot. */
 private fun AppData.endLabelAt(lat: Double?, lon: Double?): String? {

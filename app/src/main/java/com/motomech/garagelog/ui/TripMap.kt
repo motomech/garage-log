@@ -126,7 +126,8 @@ fun TripScreen(d: AppData, tripId: Long) {
     if (r != null) {
         RouteMap(r, from, to, Modifier.fillMaxWidth().height(320.dp))
     } else if (loaded) {
-        Note(if (t.kind == TripKind.AUTO) "No route for this trip. Trips recorded before route maps, or while route saving was off, have miles only."
+        Note(if (t.src == "motolog") "Imported from MotoLog, which doesn't export routes."
+            else if (t.kind == TripKind.AUTO) "No route for this trip. Trips recorded before route maps, or while route saving was off, have miles only."
             else "Entered by hand, so there's no route.", null)
     }
 
@@ -135,17 +136,18 @@ fun TripScreen(d: AppData, tripId: Long) {
         Tile("Distance", mi1(t.miles), "mi")
         Tile("Time", mins?.roundToInt()?.toString() ?: "—", "min")
         val avg = mins?.takeIf { it >= 1 }?.let { (t.miles / (it / 60)).roundToInt().toString() } ?: "—"
-        Tile("Avg / top", "$avg / ${r?.topMph?.takeIf { it > 0 }?.roundToInt() ?: "—"}", "mph")
+        Tile("Avg / top", "$avg / ${(r?.topMph ?: t.topMph)?.takeIf { it > 0 }?.roundToInt() ?: "—"}", "mph")
     }
     ListBox {
         ListRow("Started at ${from ?: "an unknown spot"}", t.start?.let { timeOf(it) }, first = true)
-        ListRow("Ended at ${to ?: "an unknown spot"}", listOfNotNull(t.end?.let { timeOf(it) }, t.toAddr).joinToString(" · ").ifBlank { null },
+        ListRow("Ended at ${to ?: "an unknown spot"}", listOfNotNull(t.end?.let { timeOf(it) }, t.toAddr?.takeIf { t.src == null }).joinToString(" · ").ifBlank { null },
             extra = {
                 if (t.toStation != null) {
                     Button(onClick = { nav.sheet(SheetReq.Fuel(null, t.vid)) },
                         colors = ButtonDefaults.buttonColors(containerColor = G.accent)) { Text("Log fill-up here") }
                 }
             })
+        if (t.stops.isNotEmpty()) ListRow("Stops along the way", t.stops.joinToString(" · "))
         ListRow("Odometer", "${mi1(t.odo - t.miles)} → ${mi1(t.odo)} mi")
     }
     if (r != null) GhostButton("Delete route (keep the miles)", Modifier.fillMaxWidth()) { confirm = "route" }

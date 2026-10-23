@@ -78,8 +78,13 @@ data class Trip(
     val toLon: Double? = null,
     val toStation: String? = null,
     val toAddr: String? = null,
-    val start: Long? = null, // epoch millis, Bluetooth trips only
+    val start: Long? = null, // epoch millis, Bluetooth and imported trips
     val end: Long? = null,
+    // Imported trips (src "motolog") have addresses instead of GPS points, and no route.
+    val fromAddr: String? = null,
+    val stops: List<String> = emptyList(),
+    val topMph: Double? = null,
+    val src: String? = null,
 )
 
 @Serializable
@@ -93,6 +98,7 @@ data class FuelEntry(
     val full: Boolean = true,
     val station: String = "",
     val stationAddr: String = "",
+    val missed: Boolean = false, // a fill-up before this one wasn't logged, so no MPG for this one
 ) {
     val total: Double get() = gal * price
 }
@@ -227,5 +233,5 @@ val PART_NAMES = listOf(
     "Wiper blades", "Air filter", "Oil filter", "Spark plugs", "Headlight bulb", "Battery", "Brake pads",
     "Serpentine belt", "Floor mats", "Fuses",
 )
-val EXPENSE_CATS = listOf("Tires", "Insurance", "Registration and fees", "Parking and tolls", "Other")
+val EXPENSE_CATS = listOf("Tires", "Insurance", "Registration and fees", "Parking and tolls", "Bills", "Other")
 val DOC_TYPES = listOf("Registration", "Insurance card", "Title", "Smog / inspection", "Warranty", "Receipt", "Other")
