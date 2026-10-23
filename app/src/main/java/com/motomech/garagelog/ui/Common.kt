@@ -59,6 +59,7 @@ val Big = TextStyle(fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
 /** Vehicle types the user can pick; the key is what's stored in Vehicle.type. */
 enum class VType(val key: String, val label: String, @DrawableRes val icon: Int) {
     CAR("car", "Car", R.drawable.ic_vt_car),
+    CONV("conv", "Convertible", R.drawable.ic_vt_conv),
     SUV("suv", "SUV", R.drawable.ic_vt_suv),
     PICKUP("pickup", "Pickup", R.drawable.ic_vt_pickup),
     VAN("van", "Van", R.drawable.ic_vt_van),
