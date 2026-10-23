@@ -203,11 +203,18 @@ data class MlChoice(val trips: Boolean = true, val fuel: Boolean = true, val bil
 
 data class MlResult(val vid: Long, val trips: Int, val fills: Int, val bills: Int, val skipped: Int)
 
-/** An existing vehicle that looks like this one: same VIN, else plate, else name. */
+/**
+ * An existing vehicle that looks like this one: same VIN, else plate, else name, else the only
+ * vehicle sharing a word with it ("67 Barracuda" finds "Barracuda" or "1967 Plymouth Barracuda").
+ */
 fun AppData.motoLogMatch(m: MlVehicle): Long? {
     fun same(a: String, b: String) = a.isNotBlank() && a.replace(" ", "").equals(b.replace(" ", ""), ignoreCase = true)
+    fun words(vararg s: String) = s.flatMap { it.lowercase().split(Regex("[^a-z0-9]+")) }
+        .filter { w -> w.length >= 3 && !w.all { it.isDigit() } }.toSet()
+    val mine = words(m.name, m.model)
     return (vehicles.firstOrNull { same(m.vin, it.vin) } ?: vehicles.firstOrNull { same(m.plate, it.plate) }
-        ?: vehicles.firstOrNull { same(m.name, it.label) || same(m.name, it.model) })?.id
+        ?: vehicles.firstOrNull { same(m.name, it.label) || same(m.name, it.model) }
+        ?: vehicles.filter { (words(it.model, it.make) intersect mine).isNotEmpty() }.singleOrNull())?.id
 }
 
 /** "6451, 71st Street North, Pinellas Park, ..." → "6451 71st Street North"; "Citgo – Pinellas Park, Park Blvd" → "Citgo – Pinellas Park". */

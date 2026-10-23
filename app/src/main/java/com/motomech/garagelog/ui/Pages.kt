@@ -348,6 +348,7 @@ private fun MotoLogPreview(d: AppData, m: MlVehicle, onSkip: () -> Unit, onImpor
             Sub("Import into", Modifier.weight(1f))
             ImportTarget(d, target) { target = it }
         }
+        if (target == null && d.vehicles.isNotEmpty()) Note("This makes a new vehicle. If it's already in your garage, pick it above so nothing is doubled.", Level.WARN)
         Check("Trips (${m.trips.size}, ${mi(m.trips.sumOf { it.miles })} mi)", c.trips) { c = c.copy(trips = it) }
         Check("Fill-ups (${m.fills.size}, ${mi1(m.fills.sumOf { it.gal })} gal)", c.fuel) { c = c.copy(fuel = it) }
         Check("Bills (${m.bills.size}, ${usd(m.bills.sumOf { it.cost })})", c.bills) { c = c.copy(bills = it) }
