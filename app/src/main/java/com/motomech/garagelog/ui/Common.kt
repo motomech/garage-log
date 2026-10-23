@@ -45,7 +45,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.motomech.garagelog.R
 import com.motomech.garagelog.data.AppData
+import com.motomech.garagelog.data.Vehicle
 import com.motomech.garagelog.data.Level
 import com.motomech.garagelog.data.activeId
 import com.motomech.garagelog.data.isConnected
@@ -53,6 +55,33 @@ import com.motomech.garagelog.data.mi1
 import com.motomech.garagelog.data.vehicle
 
 val Big = TextStyle(fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+
+/** Vehicle types the user can pick; the key is what's stored in Vehicle.type. */
+enum class VType(val key: String, val label: String, @DrawableRes val icon: Int) {
+    CAR("car", "Car", R.drawable.ic_vt_car),
+    SUV("suv", "SUV", R.drawable.ic_vt_suv),
+    PICKUP("pickup", "Pickup", R.drawable.ic_vt_pickup),
+    VAN("van", "Van", R.drawable.ic_vt_van),
+    MOTO("moto", "Motorcycle", R.drawable.ic_vt_moto),
+    SCOOTER("scooter", "Scooter", R.drawable.ic_vt_scooter),
+    RV("rv", "RV / camper", R.drawable.ic_vt_rv),
+    BOAT("boat", "Boat", R.drawable.ic_vt_boat),
+    TRAILER("trailer", "Trailer", R.drawable.ic_vt_trailer),
+    ATV("atv", "ATV", R.drawable.ic_vt_atv);
+
+    companion object {
+        fun of(key: String) = entries.firstOrNull { it.key == key } ?: CAR
+    }
+}
+
+val Vehicle.vtype: VType get() = VType.of(type)
+
+/** The vehicle's type icon on a rounded chip-colored tile, shown left of its name. */
+@Composable
+fun VehicleIcon(v: Vehicle, size: Dp = 48.dp) =
+    Box(Modifier.size(size).clip(RoundedCornerShape(size / 4)).background(G.chip), contentAlignment = Alignment.Center) {
+        GIcon(v.vtype.icon, size * 0.62f, G.ink)
+    }
 
 @Composable
 fun GIcon(@DrawableRes id: Int, size: Dp = 22.dp, tint: Color = Color.Unspecified) =
@@ -196,7 +225,9 @@ fun VehicleChip(d: AppData, vid: Long?, allowAll: Boolean = false, onPick: (Long
             Modifier.clip(RoundedCornerShape(50)).background(G.chip).clickable { open = true }
                 .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            d.vehicle(vid)?.let { GIcon(it.vtype.icon, 22.dp, G.ink) }
             Column {
                 Text(if (vid == null) "All vehicles" else d.vehicle(vid)?.label ?: "", fontWeight = FontWeight.SemiBold,
                     color = G.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 140.dp))
@@ -208,7 +239,8 @@ fun VehicleChip(d: AppData, vid: Long?, allowAll: Boolean = false, onPick: (Long
             if (allowAll) DropdownMenuItem(text = { Text("All vehicles") }, onClick = { open = false; onPick(null) })
             d.vehicles.forEach { v ->
                 val tag = if (v.id == active) (if (d.isConnected(v.id)) " (connected)" else " (active)") else ""
-                DropdownMenuItem(text = { Text(v.label + tag) }, onClick = { open = false; onPick(v.id) })
+                DropdownMenuItem(text = { Text(v.label + tag) }, onClick = { open = false; onPick(v.id) },
+                    leadingIcon = { GIcon(v.vtype.icon, 22.dp, G.ink) })
             }
         }
     }

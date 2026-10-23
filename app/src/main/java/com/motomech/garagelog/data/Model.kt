@@ -14,6 +14,7 @@ data class Vehicle(
     val odo: Double = 0.0,
     val btAddress: String? = null,
     val btName: String? = null,
+    val type: String = "car", // a VType key, picks the icon shown next to the name
     // Details. All optional; blank means not filled in.
     val plate: String = "",
     val plateState: String = "",

@@ -145,7 +145,8 @@ private fun VehicleCard(d: AppData, v: Vehicle, isActive: Boolean) {
         else -> "Last updated ${fdate(last.date)}"
     }
     GCard(border = if (isActive) G.ok else G.line, onClick = { nav.open(Page.VehicleP(v.id)) }) {
-        Row(verticalAlignment = Alignment.Top) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            VehicleIcon(v)
             Column(Modifier.weight(1f)) {
                 if (v.subtitle.isNotBlank()) Sub(v.subtitle)
                 Text(v.label, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = G.ink)
@@ -186,7 +187,8 @@ fun VehicleScreen(d: AppData, vid: Long) {
     var remToDelete by remember { mutableStateOf<Reminder?>(null) }
 
     TextButton(onClick = { nav.open(null) }) { Text("‹ Garage", color = G.ink) }
-    Row(verticalAlignment = Alignment.Bottom) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        VehicleIcon(v, 56.dp)
         Column(Modifier.weight(1f)) {
             if (v.subtitle.isNotBlank()) Sub(v.subtitle)
             Text(v.label, style = Big.copy(fontSize = 36.sp), color = G.ink)

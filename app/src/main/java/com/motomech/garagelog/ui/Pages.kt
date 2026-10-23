@@ -14,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.motomech.garagelog.R
@@ -102,6 +104,7 @@ fun LinkScreen(d: AppData, vid: Long?) {
     var make by remember { mutableStateOf(existing?.make ?: "") }
     var model by remember { mutableStateOf(existing?.model ?: "") }
     var odo by remember { mutableStateOf("") }
+    var type by remember { mutableStateOf(existing?.type ?: VType.CAR.key) }
     var sel by remember { mutableStateOf(existing?.btAddress) }
     var selName by remember { mutableStateOf(existing?.btName) }
     var askDelete by remember { mutableStateOf(false) }
@@ -121,6 +124,11 @@ fun LinkScreen(d: AppData, vid: Long?) {
         }
         TextField("Model or nickname", model, { model = it }, Modifier.fillMaxWidth(), "Silverado")
         if (existing == null) NumField("Current odometer (mi)", odo, { odo = it }, Modifier.fillMaxWidth(), decimal = false)
+    }
+    GCard {
+        H2("Type")
+        TypePicker(type) { type = it }
+        Hint("Shown next to the name in the Garage, on the vehicle screen, and in the vehicle picker on entry forms.")
     }
     GCard {
         H2("Its Bluetooth")
@@ -152,11 +160,11 @@ fun LinkScreen(d: AppData, vid: Long?) {
             if (existing == null) {
                 val o = odo.toNum()
                 if (o == null) { nav.toast("Enter the current odometer."); return@Button }
-                Repo.update { it.addVehicle(year.trim(), make.trim(), model.trim(), o, sel, selName) }
+                Repo.update { it.addVehicle(year.trim(), make.trim(), model.trim(), o, sel, selName, type) }
                 nav.toast("Vehicle added")
                 nav.open(null)
             } else {
-                Repo.update { it.replaceVehicle(existing.copy(year = year.trim(), make = make.trim(), model = model.trim(), btAddress = sel, btName = selName)) }
+                Repo.update { it.replaceVehicle(existing.copy(year = year.trim(), make = make.trim(), model = model.trim(), type = type, btAddress = sel, btName = selName)) }
                 nav.toast("Saved")
                 nav.open(Page.VehicleP(existing.id))
             }
@@ -187,6 +195,33 @@ private fun DevOption(title: String, sub: String, selected: Boolean, enabled: Bo
             Column {
                 Text(title, fontWeight = FontWeight.SemiBold, color = if (enabled) G.ink else G.muted)
                 Text(sub, fontSize = 13.sp, color = G.muted)
+            }
+        }
+    }
+}
+
+/** Grid of vehicle types, four to a row; the picked one is outlined in the accent color. */
+@Composable
+private fun TypePicker(picked: String, onPick: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        VType.entries.chunked(4).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { t ->
+                    val on = t.key == picked
+                    Surface(
+                        shape = RoundedCornerShape(12.dp), color = if (on) G.warnBg else G.card,
+                        border = BorderStroke(if (on) 2.dp else 1.dp, if (on) G.accent else G.line),
+                        modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable { onPick(t.key) },
+                    ) {
+                        Column(Modifier.padding(vertical = 10.dp, horizontal = 2.dp), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            GIcon(t.icon, 30.dp, if (on) G.warn else G.ink)
+                            Text(t.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (on) G.warn else G.ink,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }

@@ -72,8 +72,8 @@ fun AppData.setOdoAtLeast(vid: Long, odo: Double): AppData {
     return if (odo > liveOdo(v)) replaceVehicle(v.copy(odo = odo - (liveOdo(v) - v.odo))) else this
 }
 
-fun AppData.addVehicle(year: String, make: String, model: String, odo: Double, addr: String?, name: String?) =
-    withNewId { id -> copy(vehicles = vehicles + Vehicle(id, year, make, model, odo, addr, name), lastActive = lastActive ?: id) }
+fun AppData.addVehicle(year: String, make: String, model: String, odo: Double, addr: String?, name: String?, type: String) =
+    withNewId { id -> copy(vehicles = vehicles + Vehicle(id, year, make, model, odo, addr, name, type), lastActive = lastActive ?: id) }
 
 fun AppData.deleteVehicle(vid: Long) = copy(
     vehicles = vehicles.filter { it.id != vid },
