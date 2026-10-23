@@ -136,12 +136,14 @@ private fun VehicleField(d: AppData, vid: Long, editing: Boolean, onPick: (Long)
         OutlinedTextField(
             value = d.vehicle(vid)?.label ?: "", onValueChange = {}, readOnly = true, label = { Text("Vehicle") },
             modifier = Modifier.fillMaxWidth(), trailingIcon = { Text("▾  ") },
+            leadingIcon = d.vehicle(vid)?.let { v -> { GIcon(v.vtype.icon, 22.dp, G.ink) } },
             interactionSource = clickSource { open = true },
         )
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             d.vehicles.forEach { v ->
                 val tag = if (v.id == active) (if (d.isConnected(v.id)) " (connected)" else " (active)") else ""
-                DropdownMenuItem(text = { Text(v.label + tag) }, onClick = { onPick(v.id); open = false })
+                DropdownMenuItem(text = { Text(v.label + tag) }, onClick = { onPick(v.id); open = false },
+                    leadingIcon = { GIcon(v.vtype.icon, 22.dp, G.ink) })
             }
         }
     }
