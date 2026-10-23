@@ -20,7 +20,7 @@ Working name. Process: talk ideas through, review mock-ups, refine until agreed,
 - **Signing key:** a fixed key is kept in the repo (`keystore/`) so every new APK installs as an update and keeps the data. Fine for a personal sideloaded app; a Play Store release would need a private key.
 - **Version 0.1 scope:** vehicles (add, edit, delete), Bluetooth-linked trips measured by GPS, active vehicle with manual override on every entry form, Fuel (MPG, cost per mile), Service with reminders by miles or months (notifications), Parts tab, Costs (by category, by vehicle, per mile), Correct odometer, manual mileage readings, CSV export. Entries can be edited or deleted by tapping them. CSV import waits for MotoLog's format.
 
-- **Gas station detection and saved places (agreed 2026-10-23):** the stop where a trip ends is checked against OpenStreetMap gas stations (Overpass, no API key) and saved places. A station match offers "Tap to log a fill-up" with the station filled in. Saved places (Home, Work...) label trips and count visits. Details in the section below. Not built yet.
+- **Gas station detection and saved places (agreed 2026-10-23):** the stop where a trip ends is checked against OpenStreetMap gas stations (Overpass, no API key) and saved places. A station match offers "Tap to log a fill-up" with the station filled in. Saved places (Home, Work...) label trips and count visits. Details in the section below. Built in the app (PR #2, 2026-10-23).
 
 ## Features wanted
 
@@ -31,7 +31,7 @@ Working name. Process: talk ideas through, review mock-ups, refine until agreed,
 5. CSV import and export (column mapping, skip duplicates)
 6. Parts log: parts bought outside a service (part, part number, store, qty, cost). Marked installed (with odometer) or "on the shelf" for spares. Has its own tab in the bottom bar (Garage, Fuel, Service, Parts, Costs), counts as its own category in Costs, and is included in CSV export (added 2026-10-23; own tab per Ron).
 
-## Gas station detection and saved places (agreed 2026-10-23)
+## Gas station detection and saved places (agreed and built 2026-10-23)
 
 Ron asked for the app to know which gas station he filled up at, and to save places like Home and Work so it knows when he has been there. Shown in the simulator (Where you stop panel, Places screen behind the pin button on Garage, and the Log fill-up sheet).
 
@@ -41,7 +41,7 @@ Ron asked for the app to know which gas station he filled up at, and to save pla
 - **Battery:** no extra cost. GPS already runs during trips; this adds one small web request per trip end that is not at a saved place. Nothing runs between trips.
 - **Privacy:** places, trips and stations stay on the phone. Only the stop's coordinates go to the station lookup, with no account.
 - **Data:** fill-ups get station name and address (shown in the fuel list, added to CSV export). Trips get start and end spots.
-- **Engine left running at the pump (proposed 2026-10-23, waiting on Ron):** opening Log fill-up while a trip is running ends the trip right there, so the stop gets the same station lookup. If the car's Bluetooth is still connected, the next trip starts when the fill-up is saved, or as soon as the phone is moving over 5 mph (if the form was closed without saving). The 5 mph start only applies while the linked Bluetooth is still connected, so walking or riding in another car never starts a trip. If the engine is shut off instead, Bluetooth disconnects and the next connect starts the trip as usual. Shown in the simulator (Drive off button in the Where you stop panel).
+- **Engine left running at the pump (built 2026-10-23; the 5 mph scope below is the recommended option, Ron to confirm):** opening Log fill-up while a trip is running ends the trip right there, so the stop gets the same station lookup. If the car's Bluetooth is still connected, the next trip starts when the fill-up is saved, or as soon as the phone is moving over 5 mph (if the form was closed without saving). The 5 mph start only applies while the linked Bluetooth is still connected, so walking or riding in another car never starts a trip. If the engine is shut off instead, Bluetooth disconnects and the next connect starts the trip as usual. Shown in the simulator (Drive off button in the Where you stop panel).
 - **Effort:** moderate, about two to three days of app work. No server needed.
 
 ## Interactive simulator
@@ -72,3 +72,7 @@ Clickable prototype with sample data and simulated Bluetooth trips (review only,
 - Trip tracking needs location access, including in the background, and a foreground service.
 - How a trip works in the app: the system's Bluetooth connect/disconnect broadcast wakes the app; if the device is linked to a vehicle, a foreground service ("Trip in progress" notification, with an End trip button) measures GPS distance (fused location, points with accuracy worse than 30 m or jumps faster than ~155 mph ignored). On disconnect the miles go onto that vehicle's odometer and into its trip list. If Android refuses to start tracking from the background, a "Tap to track this trip" notification appears instead.
 - Reminders are checked after every trip, on app open, and once a day in the background.
+- Each trip stores its first and last GPS point. When a trip ends outside a saved place, a background job (WorkManager, needs network) asks Overpass (overpass-api.de) for `amenity=fuel` within 100 m. A match labels the trip and, within 30 minutes of the stop, posts "At <station>? Tap to log a fill-up". No match: Android's geocoder supplies a street address for the label.
+- The fill-up form searches stations within 1 mile of the last stop (if under 3 hours old) or of the phone's current location, preselecting one within 150 m.
+- Pump stop: opening Log fill-up during a trip ends the trip (no prompt). If the car's Bluetooth is still connected, the trip service stays on in "Stopped for fuel" mode and starts the next trip when the fill-up is saved or GPS speed goes over 5 mph; it gives up after 45 minutes or when Bluetooth disconnects.
+- Saved places are matched by distance at display time, so saving a place relabels older trips too.
