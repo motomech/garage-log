@@ -41,6 +41,7 @@ import com.motomech.garagelog.data.AppData
 import com.motomech.garagelog.data.Doc
 import com.motomech.garagelog.data.EXPENSE_CATS
 import com.motomech.garagelog.data.Expense
+import com.motomech.garagelog.data.Level
 import com.motomech.garagelog.data.FuelEntry
 import com.motomech.garagelog.data.PART_NAMES
 import com.motomech.garagelog.data.Part
@@ -67,6 +68,7 @@ import com.motomech.garagelog.data.today
 import com.motomech.garagelog.data.usd
 import com.motomech.garagelog.data.vehicle
 import com.motomech.garagelog.tracking.Notifs
+import com.motomech.garagelog.tracking.TripService
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Locale
@@ -80,6 +82,7 @@ sealed interface SheetReq {
     data class ExpenseS(val entry: Expense?, val vid: Long) : SheetReq
     data class Correct(val vid: Long) : SheetReq
     data class Reading(val vid: Long) : SheetReq
+    data class PlaceS(val lat: Double, val lon: Double, val label: String) : SheetReq
     data class Details(val vid: Long) : SheetReq
     data class DocS(val doc: Doc?, val vid: Long) : SheetReq
 }
@@ -100,6 +103,7 @@ fun EntrySheet(d: AppData, req: SheetReq, onClose: () -> Unit) {
                 is SheetReq.ExpenseS -> ExpenseForm(d, req, onClose)
                 is SheetReq.Correct -> OdoForm(d, req.vid, correct = true, onClose)
                 is SheetReq.Reading -> OdoForm(d, req.vid, correct = false, onClose)
+                is SheetReq.PlaceS -> PlaceForm(d, req, onClose)
                 is SheetReq.Details -> DetailsForm(d, req.vid, onClose)
                 is SheetReq.DocS -> DocForm(d, req, onClose)
             }
@@ -198,7 +202,12 @@ private fun money(n: Double) = String.format(Locale.US, "%.2f", n)
 @Composable
 private fun FuelForm(d: AppData, req: SheetReq.Fuel, onClose: () -> Unit) {
     val nav = LocalNav.current
+    val ctx = LocalContext.current
     val e = req.entry
+    // Logging fuel mid-trip means the engine is running at the pump: end the trip here.
+    LaunchedEffect(Unit) { if (e == null && Repo.current.trip?.vid == req.vid) TripService.pauseForFuel(ctx) }
+    var station by remember { mutableStateOf(e?.station ?: "") }
+    var stationAddr by remember { mutableStateOf(e?.stationAddr ?: "") }
     var vid by remember { mutableStateOf(req.vid) }
     var date by remember { mutableStateOf(e?.date ?: today()) }
     var odo by remember { mutableStateOf(e?.odo?.odoText() ?: d.vehicle(vid)?.let { d.liveOdo(it).odoText() } ?: "") }
@@ -222,12 +231,20 @@ private fun FuelForm(d: AppData, req: SheetReq.Fuel, onClose: () -> Unit) {
     val g = gal.toNum()
     val p = price.toNum()
     if (g != null && p != null) Sub("Total ${usd(g * p)}")
+    if (e == null && d.pumpWait != null) {
+        Note("Trip ended here, so the pump doesn't count as driving. The next trip starts when you save this, or as soon as you drive off.", Level.OK)
+    }
+    if (e == null) StationPicker(d, station) { n, a -> station = n; stationAddr = a }
+    else SuggestField("Gas station", station, d.fuel.map { it.station }.filter { it.isNotBlank() }.distinct(),
+        { station = it; stationAddr = "" }, Modifier.fillMaxWidth())
     CheckRow("Filled the tank (needed for MPG)", full) { full = it }
     PrimaryButton(if (e == null) "Save fill-up" else "Save changes") {
         val o = odo.toNum()
         if (g == null || g <= 0 || p == null || o == null) { nav.toast("Enter odometer, gallons and price."); return@PrimaryButton }
-        Repo.update { it.saveFuel(FuelEntry(e?.id ?: 0, vid, date, o, g, p, full)) }
-        nav.toast("Fill-up saved"); onClose()
+        Repo.update { it.saveFuel(FuelEntry(e?.id ?: 0, vid, date, o, g, p, full, station.trim(), stationAddr)) }
+        val restart = e == null && Repo.current.pumpWait != null
+        TripService.resumeAfterFuel(ctx)
+        nav.toast(if (restart) "Fill-up saved · next trip started" else "Fill-up saved"); onClose()
     }
     if (e != null) DeleteButton("fill-up") { Repo.update { it.deleteFuel(e.id) }; nav.toast("Fill-up deleted"); onClose() }
 }

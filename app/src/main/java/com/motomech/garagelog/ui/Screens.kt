@@ -69,6 +69,7 @@ import com.motomech.garagelog.data.mi1
 import com.motomech.garagelog.data.milesLast30
 import com.motomech.garagelog.data.milesSince
 import com.motomech.garagelog.data.relday
+import com.motomech.garagelog.data.routeLabel
 import com.motomech.garagelog.data.start
 import com.motomech.garagelog.data.today
 import com.motomech.garagelog.data.usd
@@ -102,6 +103,10 @@ fun GarageScreen(d: AppData) {
                 if (due > 0) " · $due service${if (due == 1) "" else "s"} due soon" else "",
             Modifier.weight(1f),
         )
+        FilledIconButton(onClick = { nav.open(Page.PlacesP) },
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = G.chip, contentColor = G.ink)) {
+            GIcon(R.drawable.ic_gps)
+        }
         FilledIconButton(onClick = { nav.open(Page.DataP) },
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = G.chip, contentColor = G.ink)) {
             GIcon(R.drawable.ic_swap)
@@ -252,11 +257,14 @@ fun VehicleScreen(d: AppData, vid: Long) {
         if (trips.isEmpty()) Empty(if (v.btAddress != null) "No trips yet. Connect the linked Bluetooth device to start one." else "No readings yet.")
         trips.forEachIndexed { i, t ->
             val (title, how) = when (t.kind) {
-                TripKind.AUTO -> "Trip" to "Bluetooth"
+                TripKind.AUTO -> "Trip" to (d.routeLabel(t) ?: "Bluetooth")
                 TripKind.MANUAL -> "Mileage reading" to "entered by hand"
                 else -> "Odometer corrected" to "set to ${mi(t.odo)}"
             }
-            ListRow(title, "${relday(t.date)} · $how", "${fmtSigned(t.miles)} mi", first = i == 0, onClick = { tripToDelete = t })
+            // Bluetooth trips open their map page; readings and corrections can only be removed.
+            ListRow(title, "${relday(t.date)} · $how", "${fmtSigned(t.miles)} mi", first = i == 0,
+                onClick = { if (t.kind == TripKind.AUTO) nav.open(Page.TripP(t.id)) else tripToDelete = t },
+                leading = { if (t.kind == TripKind.AUTO) RouteThumb(t.id) })
         }
     }
     tripToDelete?.let { t ->
@@ -309,7 +317,10 @@ fun FuelScreen(d: AppData, vid: Long, onPick: (Long?) -> Unit) {
             val f = r.f
             ListRow(
                 "${fdate(f.date)} · ${String.format(Locale.US, "%.1f", f.gal)} gal",
-                "${mi(f.odo)} mi · ${String.format(Locale.US, "$%.2f", f.price)}/gal${if (f.full) "" else " · partial"}",
+                listOfNotNull(
+                    f.station.takeIf { it.isNotBlank() }?.let { it + if (f.stationAddr.isNotBlank()) " · ${f.stationAddr}" else "" },
+                    "${mi(f.odo)} mi · ${String.format(Locale.US, "$%.2f", f.price)}/gal${if (f.full) "" else " · partial"}",
+                ).joinToString("\n"),
                 usd(f.total), r.mpg?.let { String.format(Locale.US, "%.1f mpg", it) } ?: "—",
                 first = i == 0, onClick = { nav.sheet(SheetReq.Fuel(f, f.vid)) },
             )

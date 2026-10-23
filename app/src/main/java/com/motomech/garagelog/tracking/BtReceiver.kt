@@ -34,6 +34,7 @@ class BtReceiver : BroadcastReceiver() {
             BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                 Repo.update { if (it.connectedAddress.equals(addr, true)) it.copy(connectedAddress = null) else it }
                 if (Repo.current.trip?.address.equals(addr, true)) TripService.end(context)
+                else if (Repo.current.pumpWait?.address.equals(addr, true)) TripService.cancelWait(context)
             }
         }
     }

@@ -99,12 +99,17 @@ button.card{display:block;width:100%;text-align:left}
 .headsup{position:absolute;left:10px;right:10px;top:34px;z-index:45;background:var(--card);border-radius:18px;padding:12px 14px;box-shadow:0 10px 28px rgba(0,0,0,.28);display:flex;gap:10px}
 .headsup.anim{animation:drop .25s ease-out}
 .headsup .ic{flex:none;width:32px;height:32px;border-radius:16px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center}
+.headsup.tap{cursor:pointer;border:2px solid var(--accent)}
+.headsup .act{margin-top:6px;font-size:13px;font-weight:700;color:var(--accent)}
 .headsup .app{font-size:11px;color:var(--muted)} .headsup .ti{font-size:14px;font-weight:700} .headsup .bo{font-size:13px;color:var(--ink)}
 @keyframes drop{from{transform:translateY(-30px);opacity:0}}
 .devopt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:60px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px 12px;color:var(--ink)}
 .devopt[aria-pressed="true"]{border:2px solid var(--accent)}
 .devopt:disabled{opacity:.55;cursor:not-allowed}
 .devopt .t{font-weight:600}
+.devopt .dist{margin-left:auto;font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.devopt .tag{display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:var(--ok);background:var(--ok-bg);border-radius:999px;padding:2px 8px}
+.src{font-size:11px;color:var(--muted);line-height:1.4}
 .bars{display:flex;align-items:flex-end;gap:6px;height:80px}
 .bars div{flex:1;background:var(--taupe);border-radius:4px 4px 0 0;min-height:2px}
 .bars div.cur{background:var(--accent)}
@@ -127,6 +132,7 @@ button.card{display:block;width:100%;text-align:left}
 .cbtn.on{background:#0B5E57;border-color:#0B5E57;color:#fff}
 .speeds{display:flex;gap:6px;flex-wrap:wrap}
 .speeds button{flex:1;min-height:38px;border-radius:10px;border:1px solid var(--desk-line);background:var(--desk-chip);color:var(--stage-fg);font-size:13px;font-weight:600;padding:0 8px;white-space:nowrap}
+.stops button{flex:1 1 auto;white-space:normal}
 .speeds button[aria-pressed="true"]{background:var(--stage-fg);color:var(--desk)}
 .log{max-height:220px;overflow-y:auto;font-size:12.5px;line-height:1.45;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;gap:4px}
 .log div{color:var(--stage-muted)} .log b{color:var(--stage-fg);font-weight:600}
@@ -160,6 +166,11 @@ button.card{display:block;width:100%;text-align:left}
       <div id="devices"></div>
     </section>
     <section class="panel">
+      <h2>Where you stop</h2>
+      <p>Where the car is when you shut it off (Bluetooth disconnects) or open Log fill-up mid-trip. The real app reads this from GPS.</p>
+      <div class="speeds stops" id="stops"></div>
+    </section>
+    <section class="panel">
       <h2>Driving speed</h2>
       <p>How fast trip miles add up while connected.</p>
       <div class="speeds" id="speeds"></div>
@@ -186,11 +197,27 @@ const KEY='garagelog-sim-v1';
 const SPEEDS=[{id:1,label:'Real time',mps:55/3600},{id:60,label:'60×',mps:55/60},{id:600,label:'600×',mps:55/6}];
 const PART_NAMES=['Wiper blades','Air filter','Oil filter','Spark plugs','Headlight bulb','Battery','Brake pads','Serpentine belt','Floor mats','Fuses'];
 const CATS=['Tires','Insurance','Registration and fees','Parking and tolls','Other'];
+// Simulated map. x/y are miles from home. "fuel" stops are gas stations as OpenStreetMap lists them.
+const STOPS={
+  home:{x:0,y:0,addr:'118 Oak St'},
+  work:{x:6,y:2,addr:'900 Industrial Dr'},
+  murphy:{x:2,y:1,addr:'1201 E Main St',fuel:'Murphy USA'},
+  shell:{x:2.15,y:1.1,addr:'1180 E Main St',fuel:'Shell'},
+  caseys:{x:0.4,y:0.3,addr:'410 N Park Ave',fuel:"Casey's"},
+  qt:{x:5.8,y:2.3,addr:'5 Industrial Dr',fuel:'QuikTrip'},
+  walmart:{x:-3,y:1,addr:'2200 W Main St'}
+};
+const END_CHOICES=[['home','Home'],['work','Work'],['murphy','Murphy USA (gas)'],['caseys',"Casey's (gas)"],['walmart','Somewhere new (2200 W Main St)']];
 const SERVICE_TYPES=['Oil and filter','Tire rotation','Brake pads','Air filter','Cabin air filter','Coolant flush','Transmission fluid','Spark plugs','Battery','Wiper blades','Tune-up','Inspection'];
 
 function seed(){
   return {
     today:'2026-10-23', speed:60, connected:null, trip:null, lastActive:'silv', nextId:500, notified:{},
+    here:'home', endAt:'work', lastStop:null,
+    places:[
+      {id:'pl1',name:'Home',stop:'home',radius:150},
+      {id:'pl2',name:'Work',stop:'work',radius:300}
+    ],
     devices:[
       {id:'chevy',name:'Chevy Radio',kind:'Car audio'},
       {id:'honda',name:'HONDA HFL',kind:'Car hands-free'},
@@ -202,19 +229,19 @@ function seed(){
       {id:'cuda',year:'1967',make:'Plymouth',model:'Barracuda',odo:48212,bt:null}
     ],
     trips:[
-      {id:1,vid:'silv',date:'2026-10-22',miles:38,odo:61840,kind:'auto'},
-      {id:2,vid:'silv',date:'2026-10-21',miles:24.6,odo:61802,kind:'auto'},
-      {id:3,vid:'silv',date:'2026-10-20',miles:41.2,odo:61777.4,kind:'auto'},
-      {id:4,vid:'silv',date:'2026-10-17',miles:12.8,odo:61736.2,kind:'auto'},
-      {id:5,vid:'silv',date:'2026-10-15',miles:88.4,odo:61723.4,kind:'auto'},
+      {id:1,vid:'silv',date:'2026-10-22',miles:38,odo:61840,kind:'auto',from:'work',to:'home'},
+      {id:2,vid:'silv',date:'2026-10-21',miles:24.6,odo:61802,kind:'auto',from:'home',to:'work'},
+      {id:3,vid:'silv',date:'2026-10-20',miles:41.2,odo:61777.4,kind:'auto',from:'murphy',to:'home'},
+      {id:4,vid:'silv',date:'2026-10-17',miles:12.8,odo:61736.2,kind:'auto',from:'home',to:'walmart'},
+      {id:5,vid:'silv',date:'2026-10-15',miles:88.4,odo:61723.4,kind:'auto',from:'work',to:'home'},
       {id:6,vid:'cuda',date:'2026-10-12',miles:22,odo:48212,kind:'manual'}
     ],
     fuel:[
       {id:10,vid:'silv',date:'2026-09-14',odo:60402,gal:18.0,price:3.29,full:true},
-      {id:11,vid:'silv',date:'2026-09-23',odo:60758,gal:18.6,price:3.31,full:true},
-      {id:12,vid:'silv',date:'2026-10-02',odo:61103,gal:17.8,price:3.36,full:true},
-      {id:13,vid:'silv',date:'2026-10-11',odo:61448,gal:19.1,price:3.41,full:true},
-      {id:14,vid:'silv',date:'2026-10-20',odo:61802,gal:18.4,price:3.38,full:true},
+      {id:11,vid:'silv',date:'2026-09-23',odo:60758,gal:18.6,price:3.31,full:true,station:'Murphy USA',stAddr:'1201 E Main St'},
+      {id:12,vid:'silv',date:'2026-10-02',odo:61103,gal:17.8,price:3.36,full:true,station:"Casey's",stAddr:'410 N Park Ave'},
+      {id:13,vid:'silv',date:'2026-10-11',odo:61448,gal:19.1,price:3.41,full:true,station:'QuikTrip',stAddr:'5 Industrial Dr'},
+      {id:14,vid:'silv',date:'2026-10-20',odo:61802,gal:18.4,price:3.38,full:true,station:'Murphy USA',stAddr:'1201 E Main St'},
       {id:15,vid:'cuda',date:'2026-08-30',odo:47980,gal:14.2,price:3.79,full:true},
       {id:16,vid:'cuda',date:'2026-10-12',odo:48150,gal:12.0,price:3.85,full:true}
     ],
@@ -249,6 +276,10 @@ if(!S.parts){ // older saved data: move "Parts" expenses into the new parts log
   S.parts=S.expenses.filter(e=>e.cat==='Parts').map(e=>({id:e.id,vid:e.vid,date:e.date,odo:e.odo,name:e.desc||'Part',partNo:'',store:'',qty:1,cost:e.cost,installed:true}));
   S.expenses=S.expenses.filter(e=>e.cat!=='Parts');
 }
+if(S.waitMove===undefined) S.waitMove=null;
+if(!S.places){ // older saved data: add saved places and stop tracking
+  const f=seed(); S.places=f.places; S.here='home'; S.endAt='work'; S.lastStop=null;
+}
 const ui={screen:'garage',vid:null,fuelVid:null,svcVid:null,partsVid:null,costVid:'all',range:'year',sheet:null,toast:null,headsup:null,link:null,imp:null,exportText:null};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 
@@ -276,6 +307,17 @@ function activeId(){ if(S.connected){const v=vehicleForDevice(S.connected); if(v
 const isConnected=vid=>!!(S.connected&&vehicleForDevice(S.connected)?.id===vid);
 function liveOdo(v){return v.odo+(S.trip&&S.trip.vid===v.id?S.trip.miles:0)}
 function addLog(html){const t=new Date();S.log.unshift({t:t.toTimeString().slice(0,5),html});S.log=S.log.slice(0,60)}
+
+/* places and stops */
+const STOP=id=>STOPS[id];
+const distMi=(a,b)=>Math.hypot(STOP(a).x-STOP(b).x,STOP(a).y-STOP(b).y);
+const placeAt=stop=>S.places.find(p=>p.stop===stop);
+function stopLabel(id){if(!id)return '';const p=placeAt(id);if(p)return p.name;const st=STOP(id);return st.fuel||('near '+st.addr)}
+function nearbyStations(at){return Object.keys(STOPS).filter(k=>STOP(k).fuel).map(k=>({k,d:distMi(at,k)})).filter(x=>x.d<=1.5).sort((a,b)=>a.d-b.d).slice(0,4)}
+const fmtDist=d=>d<0.05?'here':d<0.1?'< 0.1 mi':d.toFixed(1)+' mi';
+function visits(stop,sinceDays){const st=addDays(S.today,-sinceDays);return S.trips.filter(t=>t.to===stop&&t.date>=st)}
+function lastVisit(stop){return S.trips.filter(t=>t.to===stop||t.from===stop).sort((a,b)=>b.date.localeCompare(a.date))[0]}
+function tripRoute(t){return t.from||t.to?`${esc(stopLabel(t.from)||'?')} → ${esc(stopLabel(t.to)||'?')}`:''}
 
 /* reminders */
 function remStatus(r){
@@ -350,6 +392,7 @@ const I={
  swap:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>',
  down:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
  box:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+ pin:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',
  bell:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'
 };
 
@@ -359,6 +402,7 @@ function statusBar(){
   return `<div class="sbar"><span>${t}</span><span class="icons">${S.trip?I.gps:''}${S.connected?I.bt(14):''}${I.sig}${I.batt}</span></div>`;
 }
 function tripBar(){
+  if(!S.trip&&S.waitMove) return `<div class="tripbar" role="status" style="background:var(--taupe)"><div style="flex:1;min-width:0"><div class="s">Stopped at ${esc(stopLabel(S.here))} · ${esc(V(S.waitMove.vid).model)}</div><div class="m" style="font-size:22px">Next trip starts when you move</div><div class="s">Over 5 mph, or when you save the fill-up</div></div><span class="pill">${I.gps}Waiting</span></div>`;
   if(!S.trip) return '';
   const v=V(S.trip.vid); const mins=Math.round(S.trip.miles/55*60);
   return `<div class="tripbar" role="status"><div style="flex:1;min-width:0"><div class="s">Trip in progress · ${esc(v.model)}</div><div class="m">${mi1(S.trip.miles)} mi</div><div class="s">${mins} min · ends when ${esc(dev(v.bt)?.name||'Bluetooth')} disconnects</div></div><span class="pill live"><span class="dot"></span>GPS</span></div>`;
@@ -369,7 +413,7 @@ function vehChip(cur,act){
 }
 function nav(){
   const tabs=[['garage','Garage',I.car],['fuel','Fuel',I.fuel],['service','Service',I.wrench],['parts','Parts',I.box],['costs','Costs',I.chart]];
-  const curTab={vehicle:'garage',data:'garage',link:'garage'}[ui.screen]||ui.screen;
+  const curTab={vehicle:'garage',data:'garage',link:'garage',places:'garage'}[ui.screen]||ui.screen;
   return `<nav class="navbar" aria-label="Main">${tabs.map(([id,l,ic])=>`<button data-act="go" data-to="${id}" ${curTab===id?'aria-current="page"':''}>${ic}${l}</button>`).join('')}</nav><div class="gesture"><span></span></div>`;
 }
 function badgeFor(v){
@@ -381,7 +425,7 @@ function garage(){
   const act=activeId(); const due=S.vehicles.reduce((n,v)=>n+vehicleReminders(v.id).filter(x=>x.st.level!=='ok').length,0);
   const spent=costItems('all',addDays(S.today,-30)).reduce((a,b)=>a+b.amt,0);
   let h=`<div class="hdr"><div><h1>Garage</h1><div class="sub">${S.vehicles.length} vehicle${S.vehicles.length===1?'':'s'}${due?` · ${due} service${due===1?'':'s'} due soon`:''}</div></div>
-   <div style="display:flex;gap:8px"><button class="iconbtn" data-act="go" data-to="data" aria-label="Import and export">${I.swap}</button><button class="iconbtn primary" data-act="addVehicle" aria-label="Add vehicle">${I.plus}</button></div></div>`;
+   <div style="display:flex;gap:8px"><button class="iconbtn" data-act="go" data-to="places" aria-label="Places">${I.pin}</button><button class="iconbtn" data-act="go" data-to="data" aria-label="Import and export">${I.swap}</button><button class="iconbtn primary" data-act="addVehicle" aria-label="Add vehicle">${I.plus}</button></div></div>`;
   h+=tripBar();
   S.vehicles.forEach(v=>{
     const rem=vehicleReminders(v.id)[0];
@@ -419,7 +463,7 @@ function vehicleScreen(){
   const rems=vehicleReminders(v.id);
   if(rems.length){h+=`<h2 class="h2">Reminders</h2><div class="list">${rems.map(({r,st})=>`<div class="row"><div><div class="t">${esc(r.type)}</div><div class="s">Every ${[r.everyMi?mi(r.everyMi)+' mi':'',r.everyMo?r.everyMo+' months':''].filter(Boolean).join(' or ')}</div></div><span class="pill ${st.level}">${esc(st.text)}</span></div>`).join('')}</div>`}
   const trips=S.trips.filter(t=>t.vid===v.id).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,8);
-  h+=`<h2 class="h2">${v.bt?'Trips':'Mileage log'}</h2><div class="list">${trips.length?trips.map(t=>`<div class="row"><div><div class="t">${t.kind==='auto'?'Trip':t.kind==='manual'?'Mileage reading':'Odometer corrected'}</div><div class="s">${relday(t.date)} · ${t.kind==='auto'?'Bluetooth':t.kind==='manual'?'entered by hand':'set to '+mi(t.odo)} </div></div><div class="v">${t.miles>=0?'+':'−'}${mi1(Math.abs(t.miles))} mi</div></div>`).join(''):'<div class="empty">No trips yet. Connect the linked Bluetooth device to start one.</div>'}</div>`;
+  h+=`<h2 class="h2">${v.bt?'Trips':'Mileage log'}</h2><div class="list">${trips.length?trips.map(t=>`<div class="row"><div><div class="t">${t.kind==='auto'?'Trip':t.kind==='manual'?'Mileage reading':'Odometer corrected'}</div><div class="s">${relday(t.date)} · ${t.kind==='auto'?(tripRoute(t)||'Bluetooth'):t.kind==='manual'?'entered by hand':'set to '+mi(t.odo)} </div>${t.kind==='auto'&&t.to&&!placeAt(t.to)&&!STOP(t.to).fuel?`<button class="btn small ghost" style="margin-top:6px;min-height:36px" data-act="newPlace" data-stop="${t.to}">Save this spot as a place</button>`:''}</div><div class="v">${t.miles>=0?'+':'−'}${mi1(Math.abs(t.miles))} mi</div></div>`).join(''):'<div class="empty">No trips yet. Connect the linked Bluetooth device to start one.</div>'}</div>`;
   return h;
 }
 function fuelScreen(){
@@ -432,7 +476,18 @@ function fuelScreen(){
     const pts=st.series.map((m,i)=>[8+i*(W-16)/(st.series.length-1),H-6-(m-lo)/(hi-lo)*(H-12)]);
     h+=`<section class="card"><div class="sub" style="margin-bottom:6px;display:flex;justify-content:space-between"><span>MPG per fill-up</span><span>${lo}–${hi} mpg</span></div><svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="MPG across the last ${st.series.length} fill-ups"><line x1="0" y1="${H-1}" x2="${W}" y2="${H-1}" stroke="#DDD8CC"/><polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#C2410C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="5" fill="#C2410C"/></svg></section>`;
   }
-  h+=`<h2 class="h2">Fill-ups</h2><div class="list">${rows.length?rows.map(f=>`<div class="row"><div><div class="t">${fdate(f.date)} · ${f.gal.toFixed(1)} gal</div><div class="s">${mi(f.odo)} mi · $${f.price.toFixed(2)}/gal${f.full?'':' · partial'}${f.imported?' · imported':''}</div></div><div class="v">${usd(f.gal*f.price)}<div class="s">${f._mpg?f._mpg.toFixed(1)+' mpg':'—'}</div></div></div>`).join(''):'<div class="empty">No fill-ups for this vehicle yet.</div>'}</div>`;
+  h+=`<h2 class="h2">Fill-ups</h2><div class="list">${rows.length?rows.map(f=>`<div class="row"><div><div class="t">${fdate(f.date)} · ${f.gal.toFixed(1)} gal</div>${f.station?`<div class="s" style="color:var(--ink)">${esc(f.station)}${f.stAddr?' · '+esc(f.stAddr):''}</div>`:''}<div class="s">${mi(f.odo)} mi · $${f.price.toFixed(2)}/gal${f.full?'':' · partial'}${f.imported?' · imported':''}</div></div><div class="v">${usd(f.gal*f.price)}<div class="s">${f._mpg?f._mpg.toFixed(1)+' mpg':'—'}</div></div></div>`).join(''):'<div class="empty">No fill-ups for this vehicle yet.</div>'}</div>`;
+  return h;
+}
+function placesScreen(){
+  let h=`<div><button class="back" data-act="go" data-to="garage">${I.back}Garage</button></div>
+   <div class="hdr"><h1>Places</h1><button class="iconbtn primary" data-act="newPlace" data-stop="${S.here}" aria-label="Save where you are now">${I.plus}</button></div>
+   <div class="hint">Saved places name the start and end of your trips. Trips are labeled "Home → Work", and the app counts your visits. Places stay on your phone.</div>`;
+  h+=`<div class="list">${S.places.map(p=>{const lv=lastVisit(p.stop);const n=visits(p.stop,30).length;
+    return `<div class="row"><div style="min-width:0"><div class="t">${esc(p.name)}</div><div class="s">${esc(STOP(p.stop).addr)} · within ${p.radius} m</div><div class="s">${lv?'Last there '+(r=>/^(Today|Yesterday)$/.test(r)?r.toLowerCase():r)(relday(lv.date)):'No visits yet'}${n?' · '+n+' visit'+(n===1?'':'s')+' in 30 days':''}</div></div><button class="btn small ghost" style="min-height:36px" data-act="delPlace" data-pid="${p.id}">Remove</button></div>`}).join('')||'<div class="empty">No places saved yet.</div>'}</div>`;
+  const unsaved=[...new Set(S.trips.filter(t=>t.to&&!placeAt(t.to)&&!STOP(t.to).fuel).map(t=>t.to))];
+  if(unsaved.length) h+=`<h2 class="h2">Spots you stopped at</h2><div class="list">${unsaved.map(k=>{const n=visits(k,30).length;return `<div class="row"><div><div class="t">near ${esc(STOP(k).addr)}</div><div class="s">${n} stop${n===1?'':'s'} in 30 days</div></div><button class="btn small" style="min-height:36px" data-act="newPlace" data-stop="${k}">Save</button></div>`}).join('')}</div>`;
+  h+=`<section class="card"><div class="sub">You are near</div><div style="font-size:18px;font-weight:700">${esc(stopLabel(S.here))}</div><div class="sub">${esc(STOP(S.here).addr)}</div></section>`;
   return h;
 }
 function partsScreen(){
@@ -544,6 +599,16 @@ function linkScreen(){
 /* sheets */
 function vehOptions(sel){return S.vehicles.map(v=>`<option value="${v.id}" ${v.id===sel?'selected':''}>${esc(v.model)}${v.id===activeId()?(isConnected(v.id)?' (connected)':' (active)'):''}</option>`).join('')}
 function defaultNote(){const a=V(activeId());return `<div class="hint">Defaults to ${esc(a.model)} because it's ${isConnected(a.id)?'connected right now':'the last vehicle you used'}. Change it if this is for another vehicle.</div>`}
+function stationPicker(s){
+  const at=s.at, list=nearbyStations(at);
+  const why=s.atSrc==='trip'?`Your trip ended ${s.atMin} min ago at ${esc(STOP(at).fuel||placeAt(at)?stopLabel(at):STOP(at).addr)}.${STOP(at).fuel?'':' Nearest stations:'}`:`Gas stations near where you are now (${esc(stopLabel(at))}).`;
+  const opts=list.map(({k,d})=>`<button class="devopt" data-act="pickStation" data-st="${k}" aria-pressed="${s.station===k}"><div style="min-width:0"><div class="t">${esc(STOP(k).fuel)}</div><div class="sub">${esc(STOP(k).addr)}</div>${k===s.suggest?'<span class="tag">Best match</span>':''}</div><span class="dist">${fmtDist(d)}</span></button>`).join('');
+  return `<div class="field" style="gap:8px"><span>Gas station</span><div class="src">${why}</div>
+    ${opts||'<div class="hint">No gas stations within 1.5 mi of here.</div>'}
+    <button class="devopt" data-act="pickStation" data-st="" aria-pressed="${s.station===''}"><div><div class="t">Not listed or skip</div><div class="sub">Type a name below, or leave it blank</div></div></button>
+    ${s.station===''?`<input id="fStation" list="stations" placeholder="Station name (optional)" style="min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:16px"><datalist id="stations">${[...new Set(S.fuel.map(f=>f.station).filter(Boolean))].map(t=>`<option value="${esc(t)}">`).join('')}</datalist>`:''}
+    <div class="src">Station list from OpenStreetMap. Only this spot's location is sent, nothing else.</div></div>`;
+}
 function sheet(){
   const s=ui.sheet; if(!s) return '';
   let b='';
@@ -553,6 +618,8 @@ function sheet(){
      <div class="two"><label class="field" for="fDate">Date<input id="fDate" type="date" value="${S.today}"></label><label class="field" for="fOdo">Odometer<input id="fOdo" inputmode="numeric" value="${Math.round(liveOdo(v))}"></label></div>
      <div class="two"><label class="field" for="fGal">Gallons<input id="fGal" inputmode="decimal" value="17.6"></label><label class="field" for="fPrice">Price per gal<input id="fPrice" inputmode="decimal" value="3.39"></label></div>
      <div class="sub" id="fTotal"></div>
+     ${s.paused?`<div class="note ok" style="font-size:13px">Trip ended here, so the pump doesn't count as driving. The next trip starts when you save this, or as soon as you drive off (over 5 mph).</div>`:''}
+     ${stationPicker(s)}
      <label class="check"><input type="checkbox" id="fFull" checked>Filled the tank (needed for MPG)</label>
      <button class="btn" data-act="saveFuel">Save fill-up</button>`;
   }
@@ -586,6 +653,14 @@ function sheet(){
      <div class="two"><label class="field" for="eDate">Date<input id="eDate" type="date" value="${S.today}"></label><label class="field" for="eCost">Cost ($)<input id="eCost" inputmode="decimal"></label></div>
      <button class="btn" data-act="saveExpense">Save expense</button>`;
   }
+  if(s.type==='place'){
+    const st=STOP(s.stop);
+    b=`<h2>Save a place</h2><div class="sub">Location: ${esc(st.addr)}${s.stop===S.here?' (where the phone is now)':''}</div>
+     <label class="field" for="plName">Name<input id="plName" list="plNames" placeholder="Gym"><datalist id="plNames">${['Home','Work','Gym','Mom\'s house','Shop','Church'].map(t=>`<option value="${esc(t)}">`).join('')}</datalist></label>
+     <label class="field" for="plRad">Counts as "there" within<select id="plRad"><option value="100">100 m (a house)</option><option value="150" selected>150 m</option><option value="300">300 m (a big lot or plant)</option><option value="500">500 m</option></select></label>
+     <div class="hint">From now on, trips that start or end here are labeled with this name, and visits are counted. No gas station lookup happens at saved places.</div>
+     <button class="btn" data-act="savePlace">Save place</button>`;
+  }
   if(s.type==='correct'){
     const v=V(ui.vid);
     b=`<h2>Correct odometer</h2><div class="sub">GPS miles drift a little from the dash. Enter what the dash shows for ${esc(v.model)}.</div>
@@ -608,12 +683,12 @@ function sheet(){
 
 function renderPhone(){
   const scr=$('#screen'); const keepScroll=scr.querySelector('.content')?.scrollTop||0; const prevScreen=renderPhone._last;
-  let body={garage,vehicle:vehicleScreen,fuel:fuelScreen,service:serviceScreen,parts:partsScreen,costs:costsScreen,data:dataScreen,link:linkScreen}[ui.screen]();
+  let body={garage,vehicle:vehicleScreen,fuel:fuelScreen,service:serviceScreen,parts:partsScreen,costs:costsScreen,data:dataScreen,link:linkScreen,places:placesScreen}[ui.screen]();
   let fab='';
   if(ui.screen==='fuel') fab=`<button class="fab" data-act="sheet" data-sheet="fuel">${I.plus}Log fill-up</button>`;
   if(ui.screen==='parts') fab=`<button class="fab" data-act="sheet" data-sheet="part">${I.plus}Add part</button>`;
   if(ui.screen==='service') fab=`<button class="fab" data-act="sheet" data-sheet="service">${I.plus}Add record</button>`;
-  const hu=ui.headsup?`<div class="headsup${ui.headsup.fresh?' anim':''}" role="alert"><div class="ic">${I.bell}</div><div><div class="app">Garage Log · now</div><div class="ti">${esc(ui.headsup.t)}</div><div class="bo">${esc(ui.headsup.b)}</div></div></div>`:'';
+  const hu=ui.headsup?`<div class="headsup${ui.headsup.fresh?' anim':''}${ui.headsup.act?' tap':''}" role="alert" ${ui.headsup.act?`data-act="huTap"`:''}><div class="ic">${ui.headsup.act?I.fuel.replace('width="24" height="24"','width="18" height="18"'):I.bell}</div><div><div class="app">Garage Log · now</div><div class="ti">${esc(ui.headsup.t)}</div><div class="bo">${esc(ui.headsup.b)}</div>${ui.headsup.act?`<div class="act">${esc(ui.headsup.actLabel)}</div>`:''}</div></div>`:'';
   if(ui.headsup) ui.headsup.fresh=false;
   const toast=ui.toast?`<div class="toast" role="status">${esc(ui.toast)}</div>`:'';
   // keep any open sheet's form values across live re-renders
@@ -633,6 +708,8 @@ function renderDesk(){
   $('#devices').innerHTML=S.devices.map(d=>{const v=vehicleForDevice(d.id);const on=S.connected===d.id;
     return `<div class="dev"><span style="color:${on?'#0B5E57':'var(--stage-muted)'}">${I.bt(20)}</span><div class="grow"><div class="nm">${esc(d.name)}</div><div class="ln">${esc(d.kind)} · ${v?'linked to '+esc(v.model):'not linked to a vehicle'}</div></div>
     <button class="cbtn ${on?'on':''}" data-act="${on?'disconnect':'connect'}" data-did="${d.id}">${on?'Disconnect':'Connect'}</button></div>`}).join('');
+  $('#stops').innerHTML=END_CHOICES.map(([k,l])=>`<button data-act="endAt" data-k="${k}" aria-pressed="${S.endAt===k}">${esc(l)}</button>`).join('')
+    +(S.waitMove?`<button class="cbtn on" style="flex-basis:100%" data-act="driveOff">Drive off (over 5 mph)</button>`:'');
   $('#speeds').innerHTML=SPEEDS.map(s=>`<button data-act="speed" data-s="${s.id}" aria-pressed="${S.speed===s.id}">${s.label}${s.id===1?' (55 mph)':''}</button>`).join('');
   $('#simdate').textContent='Phone date: '+pd(S.today).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})+'. Jump ahead to see date-based service reminders come due.';
   $('#log').innerHTML=S.log.length?S.log.map(l=>`<div>${l.t} · ${l.html}</div>`).join(''):'<div>Nothing yet. Connect Chevy Radio to start a trip in the Silverado.</div>';
@@ -642,14 +719,14 @@ function render(){renderPhone();renderDesk();save()}
 /* ---------- feedback ---------- */
 let toastT,huT;
 function toast(m){ui.toast=m;clearTimeout(toastT);toastT=setTimeout(()=>{ui.toast=null;renderPhone()},3200)}
-function notify(t,b){ui.headsup={t,b,fresh:true};clearTimeout(huT);huT=setTimeout(()=>{ui.headsup=null;renderPhone()},4500)}
+function notify(t,b,act){ui.headsup=Object.assign({t,b,fresh:true},act||{});clearTimeout(huT);huT=setTimeout(()=>{ui.headsup=null;renderPhone()},act?9000:4500)}
 
 /* ---------- bluetooth + trips ---------- */
 function connect(did){
   if(S.connected) disconnect(S.connected,true);
   S.connected=did; const d=dev(did); const v=vehicleForDevice(did);
   if(v){
-    S.trip={vid:v.id,miles:0,date:S.today}; S.lastActive=v.id; ui.fuelVid=null; ui.svcVid=null; ui.partsVid=null;
+    S.trip={vid:v.id,miles:0,date:S.today,from:S.here}; S.lastActive=v.id; ui.fuelVid=null; ui.svcVid=null; ui.partsVid=null;
     addLog(`<b>Connected</b> ${esc(d.name)} → ${esc(v.model)} is now active, trip started`);
     notify('Trip started · '+v.model,'Connected to '+d.name+'. New entries will default to the '+v.model+'.');
   } else {
@@ -658,18 +735,30 @@ function connect(did){
 }
 function disconnect(did,quiet){
   const d=dev(did); S.connected=null;
-  if(S.trip){
-    const v=V(S.trip.vid); const m=Math.round(S.trip.miles*10)/10;
-    if(m>=0.1){
-      v.odo+=m; S.trips.push({id:nid(),vid:v.id,date:S.today,miles:m,odo:v.odo,kind:'auto'});
-      addLog(`<b>Disconnected</b> ${esc(d.name)} → trip ended, ${mi1(m)} mi added to ${esc(v.model)} (now ${mi(v.odo)})`);
-      notify('Trip saved · '+mi1(m)+' mi',v.model+' odometer is now '+mi(v.odo)+' mi.');
-      S.trip=null; checkReminders(v.id);
-    } else {
-      addLog(`<b>Disconnected</b> ${esc(d.name)} → trip under 0.1 mi, not saved`);
-      S.trip=null;
-    }
-  } else if(!quiet) addLog(`<b>Disconnected</b> ${esc(d.name)}`);
+  if(S.waitMove){S.waitMove=null;addLog(`<b>Disconnected</b> ${esc(d.name)} → engine off at the pump, no trip to restart`);return}
+  if(S.trip) endTrip(`<b>Disconnected</b> ${esc(d.name)} → trip ended`,true);
+  else if(!quiet) addLog(`<b>Disconnected</b> ${esc(d.name)}`);
+}
+// Ends the running trip where the car is now (the "Where you stop" choice). ask=false when the user already opened Log fill-up mid-trip.
+function endTrip(why,ask){
+  const v=V(S.trip.vid); const m=Math.round(S.trip.miles*10)/10;
+  if(m<0.1){addLog(why+', under 0.1 mi, not saved');S.trip=null;return}
+  const to=S.endAt, from=S.trip.from;
+  v.odo+=m; S.trips.push({id:nid(),vid:v.id,date:S.today,miles:m,odo:v.odo,kind:'auto',from,to});
+  S.here=to; S.lastStop={stop:to,vid:v.id,date:S.today,at:Date.now()};
+  addLog(`${why}, ${mi1(m)} mi added to ${esc(v.model)} (now ${mi(v.odo)})`);
+  const pl=placeAt(to), st=STOP(to);
+  if(pl) addLog(`<b>Stop</b> inside saved place "${esc(pl.name)}", no lookup needed`);
+  else { addLog(`<b>Stop</b> not a saved place → asked OpenStreetMap for gas stations within 100 m`); addLog(st.fuel?`<b>Match</b> ${esc(st.fuel)}, ${esc(st.addr)}`:`<b>No match</b> no gas station here`); }
+  if(ask){
+    if(st.fuel&&!pl) notify('At '+st.fuel+'?',v.model+' stopped at '+st.addr+'. Getting gas?',{act:'fillup',actLabel:'Tap to log a fill-up',vid:v.id});
+    else notify('Trip saved · '+mi1(m)+' mi',(from?stopLabel(from)+' → '+stopLabel(to)+'. ':'')+v.model+' odometer is now '+mi(v.odo)+' mi.');
+  }
+  S.trip=null; checkReminders(v.id);
+}
+function startTrip(vid,why){
+  S.waitMove=null; S.trip={vid,miles:0,date:S.today,from:S.here}; S.lastActive=vid;
+  addLog(`${why} → ${esc(V(vid).model)} trip started`);
 }
 let lastTick=performance.now();
 setInterval(()=>{
@@ -690,6 +779,16 @@ function num(id){const v=parseFloat(String($('#'+id)?.value||'').replace(/,/g,''
 function val(id){return ($('#'+id)?.value||'').trim()}
 function setOdoAtLeast(v,odo){if(odo>v.odo&&!(S.trip&&S.trip.vid===v.id)){S.trips.push({id:nid(),vid:v.id,date:S.today,miles:odo-v.odo,odo,kind:'manual'});v.odo=odo}}
 
+function openFuel(vid){
+  // Logging fuel mid-trip (engine still running, Bluetooth still connected) ends the trip at the pump.
+  let paused=false;
+  if(S.trip){const tv=S.trip.vid;endTrip('<b>Log fill-up opened</b> during the trip → trip ended here',false);if(S.connected){S.waitMove={vid:tv};paused=true}}
+  // Prefer where the last trip ended (shut the car off at the pump); otherwise where the phone is now.
+  const ls=S.lastStop, fresh=ls&&ls.date===S.today&&!S.trip;
+  const at=fresh?ls.stop:S.here;
+  const near=nearbyStations(at); const best=near[0]&&near[0].d<0.1?near[0].k:null;
+  ui.sheet={type:'fuel',vid,paused,at,atSrc:fresh?'trip':'now',atMin:fresh?Math.max(1,Math.round((Date.now()-ls.at)/60000)):0,suggest:best,station:best??(near.length?null:'')};
+}
 const A={
   go(e){ui.screen=e.dataset.to;ui.sheet=null;ui.exportText=ui.screen==='data'?ui.exportText:null},
   openVehicle(e){ui.vid=e.dataset.vid;ui.screen='vehicle'},
@@ -707,18 +806,20 @@ const A={
     addLog(`<b>Added</b> ${esc(year+' '+make+' '+model)}${v.bt?' linked to '+esc(dev(v.bt).name):' (manual entry)'}`);
     ui.vid=v.id;ui.screen='vehicle';toast(v.bt?`${model} added. Connect ${dev(v.bt).name} in the panel to start a trip.`:`${model} added.`);
   },
-  sheet(e){const t=e.dataset.sheet;ui.sheet={type:t,vid:t==='fuel'?(ui.fuelVid||activeId()):t==='service'?(ui.svcVid||activeId()):t==='part'?(ui.partsVid||activeId()):activeId()}},
+  sheet(e){const t=e.dataset.sheet;if(t==='fuel'){openFuel(ui.fuelVid||activeId());return}ui.sheet={type:t,vid:t==='fuel'?(ui.fuelVid||activeId()):t==='service'?(ui.svcVid||activeId()):t==='part'?(ui.partsVid||activeId()):activeId()}},
   logIt(e){const r=S.reminders.find(x=>x.id==e.dataset.rid);ui.sheet={type:'service',vid:r.vid,stype:r.type}},
   closeSheet(e,ev){if(ev.target.closest('[data-stop]')&&!ev.target.closest('.btn'))return 'skip';ui.sheet=null},
   sheetVid(e){ui.sheet.vid=e.value;const v=V(e.value);const o=$('#fOdo')||$('#sOdo');if(o){o.value=Math.round(liveOdo(v));o.dataset.fresh=1}},
   saveFuel(){
     const vid=val('fVid'),gal=num('fGal'),price=num('fPrice'),odo=num('fOdo'),date=val('fDate')||S.today;
     if(!(gal>0&&price>0&&odo>0)){toast('Enter odometer, gallons and price.');return}
-    const v=V(vid);S.fuel.push({id:nid(),vid,date,odo,gal,price,full:$('#fFull').checked});setOdoAtLeast(v,odo);
+    const sk=ui.sheet.station, station=sk?STOP(sk).fuel:val('fStation'), stAddr=sk?STOP(sk).addr:'';
+    const v=V(vid);S.fuel.push({id:nid(),vid,date,odo,gal,price,full:$('#fFull').checked,station,stAddr});setOdoAtLeast(v,odo);
     const f=fuelRows(vid).find(x=>x.odo===odo&&x.gal===gal);
     ui.sheet=null;ui.fuelVid=vid===activeId()?null:vid;
-    addLog(`<b>Fill-up</b> ${esc(v.model)} · ${gal} gal · ${usd(gal*price)}${vid!==activeId()?' (manual override)':''}`);
-    toast('Fill-up saved'+(f&&f._mpg?' · '+f._mpg.toFixed(1)+' mpg':''));
+    addLog(`<b>Fill-up</b> ${esc(v.model)} · ${gal} gal · ${usd(gal*price)}${station?' at '+esc(station):''}${vid!==activeId()?' (manual override)':''}`);
+    if(S.waitMove&&S.connected) startTrip(S.waitMove.vid,'<b>Fill-up saved</b>');
+    toast('Fill-up saved'+(f&&f._mpg?' · '+f._mpg.toFixed(1)+' mpg':'')+(S.trip?' · next trip started':''));
   },
   saveService(){
     const vid=val('sVid'),type=val('sType'),odo=num('sOdo'),cost=num('sCost')||0,date=val('sDate')||S.today;
@@ -759,6 +860,13 @@ const A={
     const d=n-v.odo;v.odo=n;S.trips.push({id:nid(),vid:v.id,date:S.today,miles:d,odo:n,kind:'manual'});S.lastActive=v.id;
     ui.sheet=null;addLog(`<b>Mileage reading</b> ${esc(v.model)} +${mi(d)} mi`);toast('+'+mi(d)+' mi added to '+v.model);checkReminders(v.id);
   },
+  huTap(){const h=ui.headsup;ui.headsup=null;clearTimeout(huT);if(h.act==='fillup'){ui.screen='fuel';ui.fuelVid=null;openFuel(h.vid)}},
+  pickStation(e){ui.sheet.station=e.dataset.st},
+  endAt(e){S.endAt=e.dataset.k},
+  driveOff(){if(S.waitMove&&S.connected){startTrip(S.waitMove.vid,'<b>Moving over 5 mph</b> with Bluetooth still connected');notify('Trip started · '+V(S.trip.vid).model,'You drove off from '+stopLabel(S.here)+'.')}},
+  newPlace(e){const k=e.dataset.stop;if(placeAt(k)){toast('This spot is already saved as '+placeAt(k).name+'.');return}ui.sheet={type:'place',stop:k}},
+  savePlace(){const name=val('plName');if(!name){toast('Give the place a name.');return}S.places.push({id:'pl'+nid(),name,stop:ui.sheet.stop,radius:+val('plRad')||150});addLog(`<b>Place saved</b> ${esc(name)} at ${esc(STOP(ui.sheet.stop).addr)}`);ui.sheet=null;toast(name+' saved. Trips there are labeled from now on.')},
+  delPlace(e){const p=S.places.find(x=>x.id===e.dataset.pid);S.places=S.places.filter(x=>x!==p);toast(p.name+' removed')},
   pickFuelVid(){ui.sheet={type:'pick',target:'fuelVid',cur:ui.fuelVid||activeId()}},
   pickSvcVid(){ui.sheet={type:'pick',target:'svcVid',cur:ui.svcVid||activeId()}},
   pickCostVid(){ui.sheet={type:'pick',target:'costVid',cur:ui.costVid,allowAll:true}},

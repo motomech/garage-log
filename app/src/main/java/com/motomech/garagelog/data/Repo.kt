@@ -22,6 +22,7 @@ object Repo {
     fun init(context: Context) {
         if (loaded) return
         file = File(context.applicationContext.filesDir, "garage.json")
+        Routes.init(context)
         if (file.exists()) {
             runCatching { _data.value = json.decodeFromString(AppData.serializer(), file.readText()) }
                 .onFailure { file.copyTo(File(file.parentFile, "garage-unreadable-${System.currentTimeMillis()}.json")) }
@@ -179,16 +180,44 @@ fun AppData.startTrip(vid: Long, addr: String, now: Long): AppData =
 
 fun AppData.addTripMiles(miles: Double): AppData = trip?.let { copy(trip = it.copy(miles = it.miles + miles)) } ?: this
 
-/** Ends the running trip: its miles go onto the odometer and into the trip list. */
-fun AppData.endTrip(): AppData {
+/** Keeps the trip's first GPS point as its start and the newest as where it is now. */
+fun AppData.setTripPoint(lat: Double, lon: Double): AppData = trip?.let {
+    copy(trip = it.copy(startLat = it.startLat ?: lat, startLon = it.startLon ?: lon, lastLat = lat, lastLon = lon))
+} ?: this
+
+/**
+ * Ends the running trip: its miles go onto the odometer and into the trip list, with where it
+ * started and ended. endLat/endLon override the last saved point when the service has a newer fix.
+ */
+fun AppData.endTrip(endLat: Double? = null, endLon: Double? = null, now: Long = System.currentTimeMillis()): AppData {
     val t = trip ?: return this
     val v = vehicle(t.vid) ?: return copy(trip = null)
     val miles = r1(t.miles)
     if (miles < 0.1) return copy(trip = null)
+    val lat = endLat ?: t.lastLat
+    val lon = endLon ?: t.lastLon
     val nv = v.copy(odo = v.odo + miles)
-    return replaceVehicle(nv).copy(trip = null).withNewId { id ->
-        copy(trips = trips + Trip(id, v.id, today(), miles, nv.odo, TripKind.AUTO))
+    val stop = if (lat != null && lon != null) LastStop(v.id, lat, lon, now) else lastStop
+    return replaceVehicle(nv).copy(trip = null, lastStop = stop).withNewId { id ->
+        copy(trips = trips + Trip(id, v.id, today(), miles, nv.odo, TripKind.AUTO, t.startLat, t.startLon, lat, lon,
+            start = t.startedAt, end = now))
     }
 }
+
+/** Records what the station lookup found where a trip ended. */
+fun AppData.labelTripEnd(tripId: Long, station: String?, stationAddr: String?, addr: String?): AppData = copy(
+    trips = trips.map { if (it.id == tripId) it.copy(toStation = station, toAddr = stationAddr ?: addr) else it },
+    lastStop = lastStop?.let { s ->
+        val t = trips.firstOrNull { it.id == tripId }
+        if (t != null && s.lat == t.toLat && s.lon == t.toLon) s.copy(station = station, stationAddr = stationAddr) else s
+    },
+)
+
+/* ---------- places ---------- */
+
+fun AppData.addPlace(name: String, lat: Double, lon: Double, radiusM: Int) =
+    withNewId { id -> copy(places = places + Place(id, name, lat, lon, radiusM)) }
+
+fun AppData.deletePlace(id: Long) = copy(places = places.filter { it.id != id })
 
 fun AppData.markNotified(key: String) = copy(notified = notified + key)

@@ -71,6 +71,15 @@ data class Trip(
     val miles: Double,
     val odo: Double, // odometer at the end of the trip
     val kind: String = TripKind.AUTO,
+    // Where the trip started and ended (GPS), and what was found at the end point.
+    val fromLat: Double? = null,
+    val fromLon: Double? = null,
+    val toLat: Double? = null,
+    val toLon: Double? = null,
+    val toStation: String? = null,
+    val toAddr: String? = null,
+    val start: Long? = null, // epoch millis, Bluetooth trips only
+    val end: Long? = null,
 )
 
 @Serializable
@@ -82,9 +91,43 @@ data class FuelEntry(
     val gal: Double,
     val price: Double,
     val full: Boolean = true,
+    val station: String = "",
+    val stationAddr: String = "",
 ) {
     val total: Double get() = gal * price
 }
+
+/** A spot the user named (Home, Work...). Trips that start or end within radiusM of it carry its name. */
+@Serializable
+data class Place(
+    val id: Long,
+    val name: String,
+    val lat: Double,
+    val lon: Double,
+    val radiusM: Int = 150,
+)
+
+/**
+ * Set when Log fill-up ended a trip at the pump while the car's Bluetooth stayed connected: the
+ * next trip starts when the fill-up is saved or the phone moves faster than 5 mph.
+ */
+@Serializable
+data class PumpWait(
+    val vid: Long,
+    val address: String,
+    val since: Long,
+)
+
+/** Where the last trip ended, kept so the fill-up form can suggest the station there. */
+@Serializable
+data class LastStop(
+    val vid: Long,
+    val lat: Double,
+    val lon: Double,
+    val at: Long,
+    val station: String? = null,
+    val stationAddr: String? = null,
+)
 
 @Serializable
 data class ServiceEntry(
@@ -142,6 +185,10 @@ data class ActiveTrip(
     val address: String,
     val startedAt: Long,
     val miles: Double = 0.0,
+    val startLat: Double? = null,
+    val startLon: Double? = null,
+    val lastLat: Double? = null,
+    val lastLon: Double? = null,
 )
 
 @Serializable
@@ -153,12 +200,23 @@ data class AppData(
     val reminders: List<Reminder> = emptyList(),
     val expenses: List<Expense> = emptyList(),
     val parts: List<Part> = emptyList(),
+    val places: List<Place> = emptyList(),
+    val lastStop: LastStop? = null,
     val docs: List<Doc> = emptyList(),
     val nextId: Long = 1,
     val lastActive: Long? = null,
     val connectedAddress: String? = null,
     val trip: ActiveTrip? = null,
+    val pumpWait: PumpWait? = null,
     val notified: Set<String> = emptySet(),
+    val routes: RouteSettings = RouteSettings(),
+)
+
+/** Trip route recording. keepDays 0 means keep forever. */
+@Serializable
+data class RouteSettings(
+    val save: Boolean = true,
+    val keepDays: Int = 0,
 )
 
 val SERVICE_TYPES = listOf(

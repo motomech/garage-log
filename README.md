@@ -15,6 +15,7 @@ An Android app for tracking vehicle mileage, fuel, service, and costs across sev
 - Parts log for parts bought outside a service (installed or on the shelf).
 - Cost totals by category and by vehicle.
 - CSV export (import waits until MotoLog's format is reviewed).
+- Knows where trips start and end: saved places (Home, Work...) label trips and count visits, and a stop at a gas station (from OpenStreetMap) offers to log a fill-up with the station filled in. Logging fuel mid-trip with the engine running ends the trip at the pump; the next one starts when you save or drive off.
 
 ## Building
 
@@ -24,6 +25,7 @@ GitHub Actions (`.github/workflows/android.yml`) builds the APK on every push an
 
 - `docs/spec.md`: decisions so far, screens, and open questions.
 - `docs/index.html`: the clickable simulator (a single web page, sample data only).
+- `docs/route-map.html`: mock-up of the trip route map proposal (sample data only).
 
 ## Mock-ups
 
