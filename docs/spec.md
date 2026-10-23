@@ -10,6 +10,7 @@ Working name. Process: talk ideas through, review mock-ups, refine until agreed,
 - **Vehicles:** multiple vehicles.
 - **Vehicle detection:** each vehicle is linked to a Bluetooth device it connects to (car radio or hands-free). Connect starts a trip, disconnect ends it. Trip distance is measured by phone GPS and added to that vehicle's odometer.
 - **Active vehicle auto-switch:** whichever linked vehicle is connected becomes the active profile. All new entries (fuel, service, expenses) default to it. The user can override manually when entering something for a vehicle they are not in.
+- **Tabs follow the vehicle you open (Ron, 2026-10-23):** opening a vehicle's page switches the Fuel, Service, Parts and Costs tabs to that vehicle, so going from the Barracuda's page to Fuel shows the Barracuda. Each tab's vehicle chip still changes it.
 - **No-Bluetooth vehicles:** manual mileage entry. A small plug-in Bluetooth adapter that powers on with the ignition is an option.
 - **Odometer drift:** a "Correct odometer" action to set the true value.
 - **OBD2:** not required. Possible optional extra later.
