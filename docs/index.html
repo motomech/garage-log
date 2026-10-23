@@ -167,7 +167,7 @@ button.card{display:block;width:100%;text-align:left}
     </section>
     <section class="panel">
       <h2>Where you stop</h2>
-      <p>Where the car is parked when you shut it off (Bluetooth disconnects). The real app reads this from the trip's last GPS point.</p>
+      <p>Where the car is when you shut it off (Bluetooth disconnects) or open Log fill-up mid-trip. The real app reads this from GPS.</p>
       <div class="speeds stops" id="stops"></div>
     </section>
     <section class="panel">
@@ -276,6 +276,7 @@ if(!S.parts){ // older saved data: move "Parts" expenses into the new parts log
   S.parts=S.expenses.filter(e=>e.cat==='Parts').map(e=>({id:e.id,vid:e.vid,date:e.date,odo:e.odo,name:e.desc||'Part',partNo:'',store:'',qty:1,cost:e.cost,installed:true}));
   S.expenses=S.expenses.filter(e=>e.cat!=='Parts');
 }
+if(S.waitMove===undefined) S.waitMove=null;
 if(!S.places){ // older saved data: add saved places and stop tracking
   const f=seed(); S.places=f.places; S.here='home'; S.endAt='work'; S.lastStop=null;
 }
@@ -401,6 +402,7 @@ function statusBar(){
   return `<div class="sbar"><span>${t}</span><span class="icons">${S.trip?I.gps:''}${S.connected?I.bt(14):''}${I.sig}${I.batt}</span></div>`;
 }
 function tripBar(){
+  if(!S.trip&&S.waitMove) return `<div class="tripbar" role="status" style="background:var(--taupe)"><div style="flex:1;min-width:0"><div class="s">Stopped at ${esc(stopLabel(S.here))} · ${esc(V(S.waitMove.vid).model)}</div><div class="m" style="font-size:22px">Next trip starts when you move</div><div class="s">Over 5 mph, or when you save the fill-up</div></div><span class="pill">${I.gps}Waiting</span></div>`;
   if(!S.trip) return '';
   const v=V(S.trip.vid); const mins=Math.round(S.trip.miles/55*60);
   return `<div class="tripbar" role="status"><div style="flex:1;min-width:0"><div class="s">Trip in progress · ${esc(v.model)}</div><div class="m">${mi1(S.trip.miles)} mi</div><div class="s">${mins} min · ends when ${esc(dev(v.bt)?.name||'Bluetooth')} disconnects</div></div><span class="pill live"><span class="dot"></span>GPS</span></div>`;
@@ -616,6 +618,7 @@ function sheet(){
      <div class="two"><label class="field" for="fDate">Date<input id="fDate" type="date" value="${S.today}"></label><label class="field" for="fOdo">Odometer<input id="fOdo" inputmode="numeric" value="${Math.round(liveOdo(v))}"></label></div>
      <div class="two"><label class="field" for="fGal">Gallons<input id="fGal" inputmode="decimal" value="17.6"></label><label class="field" for="fPrice">Price per gal<input id="fPrice" inputmode="decimal" value="3.39"></label></div>
      <div class="sub" id="fTotal"></div>
+     ${s.paused?`<div class="note ok" style="font-size:13px">Trip ended here, so the pump doesn't count as driving. The next trip starts when you save this, or as soon as you drive off (over 5 mph).</div>`:''}
      ${stationPicker(s)}
      <label class="check"><input type="checkbox" id="fFull" checked>Filled the tank (needed for MPG)</label>
      <button class="btn" data-act="saveFuel">Save fill-up</button>`;
@@ -705,7 +708,8 @@ function renderDesk(){
   $('#devices').innerHTML=S.devices.map(d=>{const v=vehicleForDevice(d.id);const on=S.connected===d.id;
     return `<div class="dev"><span style="color:${on?'#0B5E57':'var(--stage-muted)'}">${I.bt(20)}</span><div class="grow"><div class="nm">${esc(d.name)}</div><div class="ln">${esc(d.kind)} · ${v?'linked to '+esc(v.model):'not linked to a vehicle'}</div></div>
     <button class="cbtn ${on?'on':''}" data-act="${on?'disconnect':'connect'}" data-did="${d.id}">${on?'Disconnect':'Connect'}</button></div>`}).join('');
-  $('#stops').innerHTML=END_CHOICES.map(([k,l])=>`<button data-act="endAt" data-k="${k}" aria-pressed="${S.endAt===k}">${esc(l)}</button>`).join('');
+  $('#stops').innerHTML=END_CHOICES.map(([k,l])=>`<button data-act="endAt" data-k="${k}" aria-pressed="${S.endAt===k}">${esc(l)}</button>`).join('')
+    +(S.waitMove?`<button class="cbtn on" style="flex-basis:100%" data-act="driveOff">Drive off (over 5 mph)</button>`:'');
   $('#speeds').innerHTML=SPEEDS.map(s=>`<button data-act="speed" data-s="${s.id}" aria-pressed="${S.speed===s.id}">${s.label}${s.id===1?' (55 mph)':''}</button>`).join('');
   $('#simdate').textContent='Phone date: '+pd(S.today).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})+'. Jump ahead to see date-based service reminders come due.';
   $('#log').innerHTML=S.log.length?S.log.map(l=>`<div>${l.t} · ${l.html}</div>`).join(''):'<div>Nothing yet. Connect Chevy Radio to start a trip in the Silverado.</div>';
@@ -731,24 +735,30 @@ function connect(did){
 }
 function disconnect(did,quiet){
   const d=dev(did); S.connected=null;
-  if(S.trip){
-    const v=V(S.trip.vid); const m=Math.round(S.trip.miles*10)/10;
-    if(m>=0.1){
-      const to=S.endAt, from=S.trip.from;
-      v.odo+=m; S.trips.push({id:nid(),vid:v.id,date:S.today,miles:m,odo:v.odo,kind:'auto',from,to});
-      S.here=to; S.lastStop={stop:to,vid:v.id,date:S.today,at:Date.now()};
-      addLog(`<b>Disconnected</b> ${esc(d.name)} → trip ended, ${mi1(m)} mi added to ${esc(v.model)} (now ${mi(v.odo)})`);
-      const pl=placeAt(to), st=STOP(to);
-      if(pl) addLog(`<b>Stop</b> inside saved place "${esc(pl.name)}", no lookup needed`);
-      else { addLog(`<b>Stop</b> not a saved place → asked OpenStreetMap for gas stations within 100 m`); addLog(st.fuel?`<b>Match</b> ${esc(st.fuel)}, ${esc(st.addr)}`:`<b>No match</b> no gas station here`); }
-      if(st.fuel&&!pl) notify('At '+st.fuel+'?',v.model+' stopped at '+st.addr+'. Getting gas?',{act:'fillup',actLabel:'Tap to log a fill-up',vid:v.id});
-      else notify('Trip saved · '+mi1(m)+' mi',(from?stopLabel(from)+' → '+stopLabel(to)+'. ':'')+v.model+' odometer is now '+mi(v.odo)+' mi.');
-      S.trip=null; checkReminders(v.id);
-    } else {
-      addLog(`<b>Disconnected</b> ${esc(d.name)} → trip under 0.1 mi, not saved`);
-      S.trip=null;
-    }
-  } else if(!quiet) addLog(`<b>Disconnected</b> ${esc(d.name)}`);
+  if(S.waitMove){S.waitMove=null;addLog(`<b>Disconnected</b> ${esc(d.name)} → engine off at the pump, no trip to restart`);return}
+  if(S.trip) endTrip(`<b>Disconnected</b> ${esc(d.name)} → trip ended`,true);
+  else if(!quiet) addLog(`<b>Disconnected</b> ${esc(d.name)}`);
+}
+// Ends the running trip where the car is now (the "Where you stop" choice). ask=false when the user already opened Log fill-up mid-trip.
+function endTrip(why,ask){
+  const v=V(S.trip.vid); const m=Math.round(S.trip.miles*10)/10;
+  if(m<0.1){addLog(why+', under 0.1 mi, not saved');S.trip=null;return}
+  const to=S.endAt, from=S.trip.from;
+  v.odo+=m; S.trips.push({id:nid(),vid:v.id,date:S.today,miles:m,odo:v.odo,kind:'auto',from,to});
+  S.here=to; S.lastStop={stop:to,vid:v.id,date:S.today,at:Date.now()};
+  addLog(`${why}, ${mi1(m)} mi added to ${esc(v.model)} (now ${mi(v.odo)})`);
+  const pl=placeAt(to), st=STOP(to);
+  if(pl) addLog(`<b>Stop</b> inside saved place "${esc(pl.name)}", no lookup needed`);
+  else { addLog(`<b>Stop</b> not a saved place → asked OpenStreetMap for gas stations within 100 m`); addLog(st.fuel?`<b>Match</b> ${esc(st.fuel)}, ${esc(st.addr)}`:`<b>No match</b> no gas station here`); }
+  if(ask){
+    if(st.fuel&&!pl) notify('At '+st.fuel+'?',v.model+' stopped at '+st.addr+'. Getting gas?',{act:'fillup',actLabel:'Tap to log a fill-up',vid:v.id});
+    else notify('Trip saved · '+mi1(m)+' mi',(from?stopLabel(from)+' → '+stopLabel(to)+'. ':'')+v.model+' odometer is now '+mi(v.odo)+' mi.');
+  }
+  S.trip=null; checkReminders(v.id);
+}
+function startTrip(vid,why){
+  S.waitMove=null; S.trip={vid,miles:0,date:S.today,from:S.here}; S.lastActive=vid;
+  addLog(`${why} → ${esc(V(vid).model)} trip started`);
 }
 let lastTick=performance.now();
 setInterval(()=>{
@@ -770,11 +780,14 @@ function val(id){return ($('#'+id)?.value||'').trim()}
 function setOdoAtLeast(v,odo){if(odo>v.odo&&!(S.trip&&S.trip.vid===v.id)){S.trips.push({id:nid(),vid:v.id,date:S.today,miles:odo-v.odo,odo,kind:'manual'});v.odo=odo}}
 
 function openFuel(vid){
+  // Logging fuel mid-trip (engine still running, Bluetooth still connected) ends the trip at the pump.
+  let paused=false;
+  if(S.trip){const tv=S.trip.vid;endTrip('<b>Log fill-up opened</b> during the trip → trip ended here',false);if(S.connected){S.waitMove={vid:tv};paused=true}}
   // Prefer where the last trip ended (shut the car off at the pump); otherwise where the phone is now.
   const ls=S.lastStop, fresh=ls&&ls.date===S.today&&!S.trip;
   const at=fresh?ls.stop:S.here;
   const near=nearbyStations(at); const best=near[0]&&near[0].d<0.1?near[0].k:null;
-  ui.sheet={type:'fuel',vid,at,atSrc:fresh?'trip':'now',atMin:fresh?Math.max(1,Math.round((Date.now()-ls.at)/60000)):0,suggest:best,station:best??(near.length?null:'')};
+  ui.sheet={type:'fuel',vid,paused,at,atSrc:fresh?'trip':'now',atMin:fresh?Math.max(1,Math.round((Date.now()-ls.at)/60000)):0,suggest:best,station:best??(near.length?null:'')};
 }
 const A={
   go(e){ui.screen=e.dataset.to;ui.sheet=null;ui.exportText=ui.screen==='data'?ui.exportText:null},
@@ -805,7 +818,8 @@ const A={
     const f=fuelRows(vid).find(x=>x.odo===odo&&x.gal===gal);
     ui.sheet=null;ui.fuelVid=vid===activeId()?null:vid;
     addLog(`<b>Fill-up</b> ${esc(v.model)} · ${gal} gal · ${usd(gal*price)}${station?' at '+esc(station):''}${vid!==activeId()?' (manual override)':''}`);
-    toast('Fill-up saved'+(f&&f._mpg?' · '+f._mpg.toFixed(1)+' mpg':''));
+    if(S.waitMove&&S.connected) startTrip(S.waitMove.vid,'<b>Fill-up saved</b>');
+    toast('Fill-up saved'+(f&&f._mpg?' · '+f._mpg.toFixed(1)+' mpg':'')+(S.trip?' · next trip started':''));
   },
   saveService(){
     const vid=val('sVid'),type=val('sType'),odo=num('sOdo'),cost=num('sCost')||0,date=val('sDate')||S.today;
@@ -849,6 +863,7 @@ const A={
   huTap(){const h=ui.headsup;ui.headsup=null;clearTimeout(huT);if(h.act==='fillup'){ui.screen='fuel';ui.fuelVid=null;openFuel(h.vid)}},
   pickStation(e){ui.sheet.station=e.dataset.st},
   endAt(e){S.endAt=e.dataset.k},
+  driveOff(){if(S.waitMove&&S.connected){startTrip(S.waitMove.vid,'<b>Moving over 5 mph</b> with Bluetooth still connected');notify('Trip started · '+V(S.trip.vid).model,'You drove off from '+stopLabel(S.here)+'.')}},
   newPlace(e){const k=e.dataset.stop;if(placeAt(k)){toast('This spot is already saved as '+placeAt(k).name+'.');return}ui.sheet={type:'place',stop:k}},
   savePlace(){const name=val('plName');if(!name){toast('Give the place a name.');return}S.places.push({id:'pl'+nid(),name,stop:ui.sheet.stop,radius:+val('plRad')||150});addLog(`<b>Place saved</b> ${esc(name)} at ${esc(STOP(ui.sheet.stop).addr)}`);ui.sheet=null;toast(name+' saved. Trips there are labeled from now on.')},
   delPlace(e){const p=S.places.find(x=>x.id===e.dataset.pid);S.places=S.places.filter(x=>x!==p);toast(p.name+' removed')},
