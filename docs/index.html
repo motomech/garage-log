@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Garage Log Simulator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: the phone sits center stage; a "real world" control desk sits beside it (stacks above on phones). */
+:root{
+  --stage:#E7E3D8; --stage-fg:#1C1B19; --stage-muted:#5E5B54; --desk:#FFFFFF; --desk-line:#D6D0C2; --desk-chip:#F1EEE6;
+  --bezel:#1C1B19;
+  /* app palette (the app itself is light, as in the mock-ups) */
+  --bg:#F3F0E8; --card:#FFFFFF; --line:#DDD8CC; --ink:#1C1B19; --muted:#5E5B54; --chip:#ECE8DD; --chip-ink:#4A4842;
+  --accent:#C2410C; --accent-ink:#FFFFFF; --warn-bg:#FBE6DA; --warn:#9A3412; --ok-bg:#D9EFEC; --ok:#0B5E57; --bad-bg:#F8D7D3; --bad:#9B1C1C; --taupe:#7A6F5A;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }}
+:root[data-theme="dark"]{ --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--stage);color:var(--stage-fg);font-family:var(--body);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;gap:28px;align-items:flex-start;justify-content:center}
+.intro{max-width:1040px;margin:0 auto 18px}
+.intro h1{font-family:var(--display);font-size:34px;margin:0;line-height:1.05;text-wrap:balance}
+.intro p{margin:6px 0 0;color:var(--stage-muted);max-width:68ch;line-height:1.45}
+
+/* ---------- phone ---------- */
+.phone{flex:none;width:414px;height:868px;border-radius:46px;background:var(--bezel);padding:12px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.screen{position:relative;width:100%;height:100%;border-radius:34px;overflow:hidden;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;font-family:var(--body)}
+.sbar{flex:none;height:30px;padding:0 22px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:var(--ink)}
+.sbar .icons{display:flex;gap:6px;align-items:center}
+.sbar svg{display:block}
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 18px 96px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin}
+.navbar{flex:none;height:68px;background:var(--card);border-top:1px solid var(--line);display:flex}
+.navbar button{flex:1;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;font-weight:500;color:var(--muted)}
+.navbar button[aria-current="page"]{color:var(--accent);font-weight:700}
+.gesture{flex:none;height:16px;background:var(--card);display:flex;justify-content:center;align-items:center}
+.gesture span{width:110px;height:4px;border-radius:2px;background:var(--ink);opacity:.5}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px}
+.hdr h1{margin:0;font-family:var(--display);font-size:38px;font-weight:700;line-height:1}
+.sub{font-size:13px;color:var(--muted)}
+.back{min-height:44px;display:inline-flex;align-items:center;gap:2px;border:0;background:transparent;padding:0 6px 0 0;font-size:16px;font-weight:500;color:var(--ink);margin-top:4px}
+.iconbtn{width:44px;height:44px;border-radius:22px;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.iconbtn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+button.card{display:block;width:100%;text-align:left}
+.vname{font-family:var(--display);font-size:26px;font-weight:700;line-height:1.1}
+.big{font-family:var(--display);font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--chip);color:var(--chip-ink);white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.warn{background:var(--warn-bg);color:var(--warn)} .pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.live{background:var(--ok);color:#fff}
+.dot{width:8px;height:8px;border-radius:4px;background:currentColor;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.note{border-radius:10px;padding:10px 12px;font-size:14px;font-weight:500}
+.note.ok{background:var(--ok-bg);color:var(--ok)} .note.warn{background:var(--warn-bg);color:var(--warn)} .note.bad{background:var(--bad-bg);color:var(--bad)} .note.plain{background:var(--chip);color:var(--chip-ink)}
+.tiles{display:flex;gap:10px} .tiles>*{flex:1;min-width:0}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.tile .lbl{font-size:12px;color:var(--muted)}
+.h2{margin:6px 0 0;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.list{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:2px 16px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:56px;border-bottom:1px solid var(--line);padding:6px 0}
+.row:last-child{border-bottom:0}
+.row .t{font-size:15px;font-weight:500} .row .s{font-size:12px;color:var(--muted)} .row .v{font-size:15px;font-weight:600;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.empty{padding:16px 0;color:var(--muted);font-size:14px}
+.btn{min-height:48px;border:0;border-radius:12px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:16px;padding:0 16px}
+.btn.dark{background:var(--ink);color:#fff} .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)} .btn.small{min-height:40px;font-size:14px;padding:0 12px;border-radius:10px}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap} .btnrow>.btn{flex:1}
+.fab{position:absolute;right:18px;bottom:96px;min-height:52px;display:flex;align-items:center;gap:8px;padding:0 20px;border:0;border-radius:26px;background:var(--accent);color:#fff;font-size:16px;font-weight:600;box-shadow:0 4px 12px rgba(28,27,25,.25);z-index:5}
+.vchip{min-height:44px;display:flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:22px;background:var(--card);font-size:15px;font-weight:600;color:var(--ink);max-width:200px}
+.vchip small{font-size:11px;font-weight:700;color:var(--ok);text-transform:uppercase;letter-spacing:.04em}
+.seg{display:flex;background:var(--chip);border-radius:12px;padding:4px}
+.seg button{flex:1;min-height:38px;border:0;border-radius:9px;background:transparent;font-size:14px;font-weight:500;color:var(--chip-ink)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:700}
+.tripbar{background:var(--ok);color:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+.tripbar .m{font-family:var(--display);font-size:30px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.tripbar .s{font-size:12px;opacity:.9}
+
+/* sheets, toasts, heads-up notifications */
+.scrim{position:absolute;inset:0;background:rgba(20,18,15,.45);z-index:20;display:flex;align-items:flex-end}
+.sheet{width:100%;max-height:88%;overflow-y:auto;background:var(--bg);border-radius:22px 22px 0 0;padding:10px 18px 22px;display:flex;flex-direction:column;gap:12px}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 4px}
+.sheet h2{margin:0;font-family:var(--display);font-size:28px;line-height:1.1}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.field input,.field select,.field textarea{min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:16px;color:var(--ink);width:100%}
+.field textarea{padding:10px 12px;min-height:120px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.two{display:flex;gap:10px} .two>*{flex:1}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;color:var(--ink)}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.hint{font-size:12px;color:var(--muted);line-height:1.4}
+.toast{position:absolute;left:18px;right:18px;bottom:88px;background:var(--ink);color:#fff;border-radius:12px;padding:12px 14px;font-size:14px;z-index:40;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.headsup{position:absolute;left:10px;right:10px;top:34px;z-index:45;background:var(--card);border-radius:18px;padding:12px 14px;box-shadow:0 10px 28px rgba(0,0,0,.28);display:flex;gap:10px}
+.headsup.anim{animation:drop .25s ease-out}
+.headsup .ic{flex:none;width:32px;height:32px;border-radius:16px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center}
+.headsup .app{font-size:11px;color:var(--muted)} .headsup .ti{font-size:14px;font-weight:700} .headsup .bo{font-size:13px;color:var(--ink)}
+@keyframes drop{from{transform:translateY(-30px);opacity:0}}
+.devopt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:60px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:8px 12px;color:var(--ink)}
+.devopt[aria-pressed="true"]{border:2px solid var(--accent)}
+.devopt:disabled{opacity:.55;cursor:not-allowed}
+.devopt .t{font-weight:600}
+.bars{display:flex;align-items:flex-end;gap:6px;height:80px}
+.bars div{flex:1;background:var(--taupe);border-radius:4px 4px 0 0;min-height:2px}
+.bars div.cur{background:var(--accent)}
+.stack{display:flex;height:14px;border-radius:4px;overflow:hidden;gap:2px;background:var(--chip)}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.maprow{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:46px;border-bottom:1px solid var(--line);font-size:14px}
+.maprow:last-child{border-bottom:0}
+.maprow select{min-height:36px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:0 6px;font-size:14px;color:var(--ink);max-width:150px}
+
+/* ---------- control desk ---------- */
+.desk{flex:1;min-width:0;max-width:440px;display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--desk);border:1px solid var(--desk-line);border-radius:16px;padding:16px}
+.panel h2{margin:0 0 4px;font-family:var(--display);font-size:22px}
+.panel p{margin:0 0 10px;color:var(--stage-muted);font-size:13px;line-height:1.45}
+.dev{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--desk-line)}
+.dev:first-of-type{border-top:0}
+.dev .nm{font-weight:600} .dev .ln{font-size:12px;color:var(--stage-muted)}
+.dev .grow{flex:1;min-width:0}
+.cbtn{min-height:40px;border-radius:10px;border:1px solid var(--desk-line);background:var(--desk-chip);color:var(--stage-fg);font-weight:600;padding:0 12px;white-space:nowrap}
+.cbtn.on{background:#0B5E57;border-color:#0B5E57;color:#fff}
+.speeds{display:flex;gap:6px;flex-wrap:wrap}
+.speeds button{flex:1;min-height:38px;border-radius:10px;border:1px solid var(--desk-line);background:var(--desk-chip);color:var(--stage-fg);font-size:13px;font-weight:600;padding:0 8px;white-space:nowrap}
+.speeds button[aria-pressed="true"]{background:var(--stage-fg);color:var(--desk)}
+.log{max-height:220px;overflow-y:auto;font-size:12.5px;line-height:1.45;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;gap:4px}
+.log div{color:var(--stage-muted)} .log b{color:var(--stage-fg);font-weight:600}
+.legend{font-size:12px;color:var(--stage-muted);line-height:1.5}
+
+@media (max-width:900px){
+  .wrap{flex-direction:column;align-items:center}
+  .desk{max-width:414px;width:100%;order:-1}
+  .log{max-height:120px}
+}
+@media (max-width:460px){
+  body{padding-block:12px}
+  .phone{width:100%;height:760px;border-radius:30px;padding:6px}
+  .screen{border-radius:24px}
+}
+@media (prefers-reduced-motion:reduce){ .dot,.headsup{animation:none} }
+</style>
+
+</head>
+<body>
+<div class="intro">
+  <h1>Garage Log simulator</h1>
+  <p>A working prototype with sample data. Use the panel to get in a vehicle: connecting its Bluetooth starts a trip, and disconnecting adds the miles to that vehicle. Everything in the phone is tappable. Your changes stay in this browser until you reset.</p>
+</div>
+<div class="wrap">
+  <div class="phone"><div class="screen" id="screen"></div></div>
+  <aside class="desk" aria-label="Simulator controls">
+    <section class="panel">
+      <h2>Car Bluetooth</h2>
+      <p>Devices paired with the phone. Connect one as if you just started the car. Only linked devices start a trip.</p>
+      <div id="devices"></div>
+    </section>
+    <section class="panel">
+      <h2>Driving speed</h2>
+      <p>How fast trip miles add up while connected.</p>
+      <div class="speeds" id="speeds"></div>
+    </section>
+    <section class="panel">
+      <h2>Time</h2>
+      <p id="simdate"></p>
+      <div class="btnrow" style="gap:8px">
+        <button class="cbtn" data-act="jump" data-days="7">+1 week</button>
+        <button class="cbtn" data-act="jump" data-days="30">+30 days</button>
+        <button class="cbtn" data-act="reset">Reset sample data</button>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>What the app saw</h2>
+      <div class="log" id="log" aria-live="polite"></div>
+    </section>
+  </aside>
+</div>
+
+<script>
+(function(){
+const KEY='garagelog-sim-v1';
+const SPEEDS=[{id:1,label:'Real time',mps:55/3600},{id:60,label:'60×',mps:55/60},{id:600,label:'600×',mps:55/6}];
+const PART_NAMES=['Wiper blades','Air filter','Oil filter','Spark plugs','Headlight bulb','Battery','Brake pads','Serpentine belt','Floor mats','Fuses'];
+const CATS=['Tires','Insurance','Registration and fees','Parking and tolls','Other'];
+const SERVICE_TYPES=['Oil and filter','Tire rotation','Brake pads','Air filter','Cabin air filter','Coolant flush','Transmission fluid','Spark plugs','Battery','Wiper blades','Tune-up','Inspection'];
+
+function seed(){
+  return {
+    today:'2026-10-23', speed:60, connected:null, trip:null, lastActive:'silv', nextId:500, notified:{},
+    devices:[
+      {id:'chevy',name:'Chevy Radio',kind:'Car audio'},
+      {id:'honda',name:'HONDA HFL',kind:'Car hands-free'},
+      {id:'adapter',name:'BT Car Adapter',kind:'Plug-in adapter'},
+      {id:'buds',name:'Ron’s Earbuds',kind:'Headphones'}
+    ],
+    vehicles:[
+      {id:'silv',year:'2019',make:'Chevrolet',model:'Silverado',odo:61840,bt:'chevy'},
+      {id:'cuda',year:'1967',make:'Plymouth',model:'Barracuda',odo:48212,bt:null}
+    ],
+    trips:[
+      {id:1,vid:'silv',date:'2026-10-22',miles:38,odo:61840,kind:'auto'},
+      {id:2,vid:'silv',date:'2026-10-21',miles:24.6,odo:61802,kind:'auto'},
+      {id:3,vid:'silv',date:'2026-10-20',miles:41.2,odo:61777.4,kind:'auto'},
+      {id:4,vid:'silv',date:'2026-10-17',miles:12.8,odo:61736.2,kind:'auto'},
+      {id:5,vid:'silv',date:'2026-10-15',miles:88.4,odo:61723.4,kind:'auto'},
+      {id:6,vid:'cuda',date:'2026-10-12',miles:22,odo:48212,kind:'manual'}
+    ],
+    fuel:[
+      {id:10,vid:'silv',date:'2026-09-14',odo:60402,gal:18.0,price:3.29,full:true},
+      {id:11,vid:'silv',date:'2026-09-23',odo:60758,gal:18.6,price:3.31,full:true},
+      {id:12,vid:'silv',date:'2026-10-02',odo:61103,gal:17.8,price:3.36,full:true},
+      {id:13,vid:'silv',date:'2026-10-11',odo:61448,gal:19.1,price:3.41,full:true},
+      {id:14,vid:'silv',date:'2026-10-20',odo:61802,gal:18.4,price:3.38,full:true},
+      {id:15,vid:'cuda',date:'2026-08-30',odo:47980,gal:14.2,price:3.79,full:true},
+      {id:16,vid:'cuda',date:'2026-10-12',odo:48150,gal:12.0,price:3.85,full:true}
+    ],
+    service:[
+      {id:20,vid:'silv',date:'2026-09-18',odo:60690,type:'Oil and filter',cost:74.50},
+      {id:21,vid:'silv',date:'2026-08-14',odo:59800,type:'Brake pads',cost:212.00},
+      {id:22,vid:'silv',date:'2026-06-03',odo:57400,type:'Cabin air filter',cost:28.00},
+      {id:23,vid:'silv',date:'2026-04-18',odo:55700,type:'Tire rotation',cost:0},
+      {id:24,vid:'cuda',date:'2026-04-06',odo:45512,type:'Oil and filter',cost:41.00}
+    ],
+    reminders:[
+      {id:30,vid:'silv',type:'Oil and filter',everyMi:5000,everyMo:6,lastOdo:60690,lastDate:'2026-09-18'},
+      {id:31,vid:'silv',type:'Tire rotation',everyMi:7500,everyMo:0,lastOdo:55700,lastDate:'2026-04-18'},
+      {id:32,vid:'cuda',type:'Oil and filter',everyMi:3000,everyMo:12,lastOdo:45512,lastDate:'2026-04-06'}
+    ],
+    expenses:[
+      {id:40,vid:'silv',date:'2026-03-02',odo:55100,cat:'Registration and fees',desc:'Plates and registration',cost:86},
+      {id:43,vid:'cuda',date:'2026-07-01',odo:47300,cat:'Insurance',desc:'Classic car policy',cost:212}
+    ],
+    parts:[
+      {id:50,vid:'silv',date:'2026-09-05',odo:60540,name:'Wiper blades',partNo:'Bosch 22A',store:'AutoZone',qty:2,cost:34,installed:true},
+      {id:51,vid:'cuda',date:'2026-05-10',odo:46100,name:'Points and condenser',partNo:'Standard DR-2050',store:'RockAuto',qty:1,cost:42,installed:true},
+      {id:52,vid:'cuda',date:'2026-10-02',odo:48190,name:'Spark plugs',partNo:'Champion RJ12YC',store:'RockAuto',qty:8,cost:27.92,installed:false},
+      {id:53,vid:'silv',date:'2026-10-14',odo:61700,name:'Engine air filter',partNo:'ACDelco A3218C',store:'Walmart',qty:1,cost:24.97,installed:false}
+    ],
+    log:[]
+  };
+}
+let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.vehicles) S=seed();
+if(!S.parts){ // older saved data: move "Parts" expenses into the new parts log
+  S.parts=S.expenses.filter(e=>e.cat==='Parts').map(e=>({id:e.id,vid:e.vid,date:e.date,odo:e.odo,name:e.desc||'Part',partNo:'',store:'',qty:1,cost:e.cost,installed:true}));
+  S.expenses=S.expenses.filter(e=>e.cat!=='Parts');
+}
+const ui={screen:'garage',vid:null,fuelVid:null,svcVid:null,partsVid:null,costVid:'all',range:'year',sheet:null,toast:null,headsup:null,link:null,imp:null,exportText:null};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const V=id=>S.vehicles.find(v=>v.id===id);
+const mi=n=>Math.round(n).toLocaleString('en-US');
+const mi1=n=>(Math.round(n*10)/10).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+const usd=n=>'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const usd0=n=>'$'+Math.round(n).toLocaleString('en-US');
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(Date.UTC(y,m-1,d))};
+const iso=d=>d.toISOString().slice(0,10);
+const addDays=(s,n)=>{const d=pd(s);d.setUTCDate(d.getUTCDate()+n);return iso(d)};
+const addMonths=(s,n)=>{const d=pd(s);d.setUTCMonth(d.getUTCMonth()+n);return iso(d)};
+const daysBetween=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+function fdate(s){const d=pd(s);const t=MON[d.getUTCMonth()]+' '+d.getUTCDate();return d.getUTCFullYear()===pd(S.today).getUTCFullYear()?t:t+', '+d.getUTCFullYear()}
+function relday(s){const n=daysBetween(s,S.today);return n===0?'Today':n===1?'Yesterday':fdate(s)}
+const vlabel=v=>v.model;
+const nid=()=>++S.nextId;
+const dev=id=>S.devices.find(d=>d.id===id);
+const vehicleForDevice=did=>S.vehicles.find(v=>v.bt===did);
+function activeId(){ if(S.connected){const v=vehicleForDevice(S.connected); if(v) return v.id;} return V(S.lastActive)?S.lastActive:S.vehicles[0]?.id }
+const isConnected=vid=>!!(S.connected&&vehicleForDevice(S.connected)?.id===vid);
+function liveOdo(v){return v.odo+(S.trip&&S.trip.vid===v.id?S.trip.miles:0)}
+function addLog(html){const t=new Date();S.log.unshift({t:t.toTimeString().slice(0,5),html});S.log=S.log.slice(0,60)}
+
+/* reminders */
+function remStatus(r){
+  const v=V(r.vid); const odo=liveOdo(v);
+  const leftMi=r.everyMi?r.lastOdo+r.everyMi-odo:null;
+  const dueDate=r.everyMo?addMonths(r.lastDate,r.everyMo):null;
+  const leftDays=dueDate?daysBetween(S.today,dueDate):null;
+  let level='ok';
+  if((leftMi!=null&&leftMi<=0)||(leftDays!=null&&leftDays<=0)) level='bad';
+  else if((leftMi!=null&&leftMi<=500)||(leftDays!=null&&leftDays<=30)) level='warn';
+  let text;
+  if(level==='bad'){ text=(leftMi!=null&&leftMi<=0)?'Overdue by '+mi(-leftMi)+' mi':'Overdue since '+fdate(dueDate) }
+  else { const parts=[]; if(leftMi!=null) parts.push('in '+mi(leftMi)+' mi'); if(dueDate) parts.push('by '+fdate(dueDate)); text='Due '+parts.join(' or ') }
+  const rank=level==='bad'?-1e9+(leftMi??0):Math.min(leftMi??1e9,(leftDays??1e9)*30);
+  return {level,text,leftMi,leftDays,dueDate,rank};
+}
+function vehicleReminders(vid){return S.reminders.filter(r=>r.vid===vid).map(r=>({r,st:remStatus(r)})).sort((a,b)=>a.st.rank-b.st.rank)}
+function checkReminders(vid){
+  vehicleReminders(vid).forEach(({r,st})=>{
+    const k=r.id+':'+r.lastOdo+':'+st.level;
+    if(st.level!=='ok'&&!S.notified[k]){S.notified[k]=1;
+      notify(r.type+' '+(st.level==='bad'?'is overdue':'due soon'),V(vid).model+' · '+st.text);
+      addLog('<b>Reminder</b> '+esc(r.type)+' for '+esc(V(vid).model)+': '+esc(st.text));}
+  });
+}
+
+/* fuel */
+function fuelRows(vid){
+  const rows=S.fuel.filter(f=>f.vid===vid).sort((a,b)=>a.odo-b.odo);
+  let prev=null, gSince=0;
+  rows.forEach(f=>{ f._mpg=null; gSince+=f.gal; if(prev&&f.full){ f._mpg=(f.odo-prev.odo)/gSince; } if(f.full){prev=f;gSince=0} });
+  return rows;
+}
+function fuelStats(vid){
+  const rows=fuelRows(vid).filter(f=>f._mpg);
+  const recent=rows.slice(-5);
+  let m=0,g=0,c=0; recent.forEach(f=>{m+=f._mpg*f.gal; g+=f.gal; c+=f.gal*f.price});
+  return {avg:g?m/g:null,cpm:m?c/m:null,series:rows.slice(-8).map(f=>f._mpg)};
+}
+
+/* costs */
+function rangeStart(){ if(ui.range==='30') return addDays(S.today,-30); if(ui.range==='year') return S.today.slice(0,4)+'-01-01'; return '0000-01-01' }
+function costItems(vid,start){
+  const ok=x=>(vid==='all'||x.vid===vid)&&x.date>=start&&x.date<=S.today;
+  const items=[];
+  S.fuel.filter(ok).forEach(f=>items.push({cat:'Fuel',amt:f.gal*f.price,vid:f.vid}));
+  S.service.filter(ok).forEach(s=>items.push({cat:'Service and repairs',amt:s.cost,vid:s.vid}));
+  S.parts.filter(ok).forEach(x=>items.push({cat:'Parts',amt:x.cost,vid:x.vid}));
+  S.expenses.filter(ok).forEach(e=>items.push({cat:'Other',amt:e.cost,vid:e.vid,sub:e.cat}));
+  return items;
+}
+function milesSince(vid,start){
+  const v=V(vid); const odos=[];
+  S.fuel.concat(S.service,S.expenses,S.parts).forEach(x=>{if(x.vid===vid&&x.date>=start&&x.odo)odos.push(x.odo)});
+  S.trips.forEach(t=>{if(t.vid===vid&&t.date>=start&&t.kind!=='correction')odos.push(t.odo-t.miles)});
+  if(!odos.length) return 0; return Math.max(0,liveOdo(v)-Math.min(...odos));
+}
+function milesLast30(){let n=0;const st=addDays(S.today,-30);S.trips.forEach(t=>{if(t.date>=st&&t.kind!=='correction')n+=t.miles});if(S.trip)n+=S.trip.miles;return n}
+
+/* ---------- icons ---------- */
+const I={
+ car:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>',
+ fuel:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg>',
+ wrench:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+ chart:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 16V9"/><path d="M12 16V5"/><path d="M17 16v-4"/></svg>',
+ bt:(s=14)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>`,
+ gps:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+ batt:'<svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true"><rect x="0.5" y="0.5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor"/><rect x="2.5" y="2.5" width="12" height="7" rx="1" fill="currentColor"/><rect x="19.5" y="4" width="2" height="4" rx="1" fill="currentColor"/></svg>',
+ sig:'<svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="4.3" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="8.6" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="12.9" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>',
+ back:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+ plus:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+ swap:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>',
+ down:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+ box:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+ bell:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>'
+};
+
+/* ---------- phone rendering ---------- */
+function statusBar(){
+  const t=new Date().toTimeString().slice(0,5);
+  return `<div class="sbar"><span>${t}</span><span class="icons">${S.trip?I.gps:''}${S.connected?I.bt(14):''}${I.sig}${I.batt}</span></div>`;
+}
+function tripBar(){
+  if(!S.trip) return '';
+  const v=V(S.trip.vid); const mins=Math.round(S.trip.miles/55*60);
+  return `<div class="tripbar" role="status"><div style="flex:1;min-width:0"><div class="s">Trip in progress · ${esc(v.model)}</div><div class="m">${mi1(S.trip.miles)} mi</div><div class="s">${mins} min · ends when ${esc(dev(v.bt)?.name||'Bluetooth')} disconnects</div></div><span class="pill live"><span class="dot"></span>GPS</span></div>`;
+}
+function vehChip(cur,act){
+  const v=V(cur); const isAct=cur===activeId();
+  return `<button class="vchip" data-act="${act}" aria-label="Change vehicle, now ${esc(v.model)}"><span style="display:flex;flex-direction:column;align-items:flex-start;line-height:1.1;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${esc(v.model)}</span>${isAct?`<small>${isConnected(cur)?'Connected':'Active'}</small>`:''}</span>${I.down}</button>`;
+}
+function nav(){
+  const tabs=[['garage','Garage',I.car],['fuel','Fuel',I.fuel],['service','Service',I.wrench],['parts','Parts',I.box],['costs','Costs',I.chart]];
+  const curTab={vehicle:'garage',data:'garage',link:'garage'}[ui.screen]||ui.screen;
+  return `<nav class="navbar" aria-label="Main">${tabs.map(([id,l,ic])=>`<button data-act="go" data-to="${id}" ${curTab===id?'aria-current="page"':''}>${ic}${l}</button>`).join('')}</nav><div class="gesture"><span></span></div>`;
+}
+function badgeFor(v){
+  if(isConnected(v.id)) return `<span class="pill live"><span class="dot"></span>Connected</span>`;
+  if(v.bt) return `<span class="pill ok">${I.bt(12)}Auto-tracking</span>`;
+  return `<span class="pill">Manual entry</span>`;
+}
+function garage(){
+  const act=activeId(); const due=S.vehicles.reduce((n,v)=>n+vehicleReminders(v.id).filter(x=>x.st.level!=='ok').length,0);
+  const spent=costItems('all',addDays(S.today,-30)).reduce((a,b)=>a+b.amt,0);
+  let h=`<div class="hdr"><div><h1>Garage</h1><div class="sub">${S.vehicles.length} vehicle${S.vehicles.length===1?'':'s'}${due?` · ${due} service${due===1?'':'s'} due soon`:''}</div></div>
+   <div style="display:flex;gap:8px"><button class="iconbtn" data-act="go" data-to="data" aria-label="Import and export">${I.swap}</button><button class="iconbtn primary" data-act="addVehicle" aria-label="Add vehicle">${I.plus}</button></div></div>`;
+  h+=tripBar();
+  S.vehicles.forEach(v=>{
+    const rem=vehicleReminders(v.id)[0];
+    const lastTrip=S.trips.filter(t=>t.vid===v.id).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id)[0];
+    const sub=S.trip&&S.trip.vid===v.id?`Trip in progress · +${mi1(S.trip.miles)} mi`:lastTrip?(lastTrip.kind==='auto'?`Last trip ${(r=>/^(Today|Yesterday)$/.test(r)?r.toLowerCase():r)(relday(lastTrip.date))} · ${mi1(lastTrip.miles)} mi`:`Last updated ${fdate(lastTrip.date)}`):'No trips yet';
+    h+=`<button class="card" data-act="openVehicle" data-vid="${v.id}" ${v.id===act?'style="border:2px solid var(--ok)"':''}>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div><div class="sub">${esc(v.year+' '+v.make)}</div><div class="vname">${esc(v.model)}</div></div>${badgeFor(v)}</div>
+      <div style="margin-top:8px;display:flex;align-items:baseline;gap:6px"><span class="big" style="font-size:44px">${mi(liveOdo(v))}</span><span class="sub" style="font-size:15px">mi</span>${v.id===act?'<span class="pill ok" style="margin-left:auto">Active</span>':''}</div>
+      <div class="sub">${sub}</div>
+      ${rem?`<div class="note ${rem.st.level}" style="margin-top:10px">${esc(rem.r.type)}: ${esc(rem.st.text.charAt(0).toLowerCase()+rem.st.text.slice(1))}</div>`:'<div class="note ok" style="margin-top:10px">No reminders set</div>'}
+    </button>`;
+  });
+  h+=`<div class="tiles"><div class="tile"><div class="lbl">Miles, last 30 days</div><div class="big" style="font-size:28px">${mi(milesLast30())}</div></div><div class="tile"><div class="lbl">Spent, last 30 days</div><div class="big" style="font-size:28px">${usd0(spent)}</div></div></div>`;
+  return h;
+}
+function vehicleScreen(){
+  const v=V(ui.vid); if(!v){ui.screen='garage';return garage()}
+  const d=v.bt?dev(v.bt):null; const conn=isConnected(v.id);
+  let h=`<div><button class="back" data-act="go" data-to="garage">${I.back}Garage</button></div>
+   <div><div class="sub">${esc(v.year+' '+v.make)}</div><h1 style="margin:0;font-family:var(--display);font-size:38px;line-height:1.05">${esc(v.model)}</h1></div>`;
+  if(S.trip&&S.trip.vid===v.id) h+=tripBar();
+  if(d){
+    h+=`<section class="card" style="background:var(--ok-bg);border-color:var(--ok-bg);color:var(--ok);display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center">${I.bt(24)}<div><div style="font-weight:700;font-size:16px">${conn?'Connected now':'Linked to car Bluetooth'}</div><div style="font-size:13px">${esc(d.name)} · trips tracked automatically</div></div></div>
+      <div class="btnrow"><button class="btn small ghost" style="background:var(--card)" data-act="linkExisting" data-vid="${v.id}">Change device</button><button class="btn small ghost" style="background:var(--card)" data-act="unlink" data-vid="${v.id}">Unlink</button></div></section>`;
+  } else {
+    h+=`<section class="card" style="display:flex;flex-direction:column;gap:10px"><div><div style="font-weight:700;font-size:16px">Manual entry</div><div class="sub">No Bluetooth linked. Enter the odometer when you drive it, or link a plug-in Bluetooth adapter that powers on with the ignition.</div></div>
+      <div class="btnrow"><button class="btn small" data-act="sheet" data-sheet="reading">Add mileage reading</button><button class="btn small ghost" data-act="linkExisting" data-vid="${v.id}">Link Bluetooth</button></div></section>`;
+  }
+  const monthStart=S.today.slice(0,7)+'-01'; const mt=S.trips.filter(t=>t.vid===v.id&&t.date>=monthStart&&t.kind==='auto');
+  h+=`<section class="card"><div class="sub">Odometer</div><div style="display:flex;align-items:baseline;gap:6px"><span class="big" style="font-size:56px">${mi(liveOdo(v))}</span><span class="sub" style="font-size:16px">mi</span></div>
+    ${S.trip&&S.trip.vid===v.id?`<div style="font-size:14px;color:var(--ok);font-weight:600">+${mi1(S.trip.miles)} mi on this trip so far</div>`:''}
+    ${v.bt?`<div class="sub">This month: ${mi(mt.reduce((a,t)=>a+t.miles,0))} mi in ${mt.length} trip${mt.length===1?'':'s'}</div>`:''}
+    <button class="btn small ghost" style="margin-top:10px;width:100%" data-act="sheet" data-sheet="correct">Correct odometer</button></section>`;
+  const rems=vehicleReminders(v.id);
+  if(rems.length){h+=`<h2 class="h2">Reminders</h2><div class="list">${rems.map(({r,st})=>`<div class="row"><div><div class="t">${esc(r.type)}</div><div class="s">Every ${[r.everyMi?mi(r.everyMi)+' mi':'',r.everyMo?r.everyMo+' months':''].filter(Boolean).join(' or ')}</div></div><span class="pill ${st.level}">${esc(st.text)}</span></div>`).join('')}</div>`}
+  const trips=S.trips.filter(t=>t.vid===v.id).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,8);
+  h+=`<h2 class="h2">${v.bt?'Trips':'Mileage log'}</h2><div class="list">${trips.length?trips.map(t=>`<div class="row"><div><div class="t">${t.kind==='auto'?'Trip':t.kind==='manual'?'Mileage reading':'Odometer corrected'}</div><div class="s">${relday(t.date)} · ${t.kind==='auto'?'Bluetooth':t.kind==='manual'?'entered by hand':'set to '+mi(t.odo)} </div></div><div class="v">${t.miles>=0?'+':'−'}${mi1(Math.abs(t.miles))} mi</div></div>`).join(''):'<div class="empty">No trips yet. Connect the linked Bluetooth device to start one.</div>'}</div>`;
+  return h;
+}
+function fuelScreen(){
+  const vid=ui.fuelVid||activeId(); const v=V(vid); const st=fuelStats(vid);
+  const rows=fuelRows(vid).slice().reverse();
+  let h=`<div class="hdr"><h1>Fuel</h1>${vehChip(vid,'pickFuelVid')}</div>`+tripBar();
+  h+=`<div class="tiles"><div class="tile"><div class="lbl">Average</div><div><span class="big" style="font-size:32px">${st.avg?st.avg.toFixed(1):'—'}</span> <span class="sub">mpg</span></div></div><div class="tile"><div class="lbl">Fuel cost</div><div><span class="big" style="font-size:32px">${st.cpm?'$'+st.cpm.toFixed(2):'—'}</span> <span class="sub">/mi</span></div></div></div>`;
+  if(st.series.length>1){
+    const lo=Math.floor(Math.min(...st.series))-1, hi=Math.ceil(Math.max(...st.series))+1, W=320,H=90;
+    const pts=st.series.map((m,i)=>[8+i*(W-16)/(st.series.length-1),H-6-(m-lo)/(hi-lo)*(H-12)]);
+    h+=`<section class="card"><div class="sub" style="margin-bottom:6px;display:flex;justify-content:space-between"><span>MPG per fill-up</span><span>${lo}–${hi} mpg</span></div><svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="MPG across the last ${st.series.length} fill-ups"><line x1="0" y1="${H-1}" x2="${W}" y2="${H-1}" stroke="#DDD8CC"/><polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="#C2410C" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="5" fill="#C2410C"/></svg></section>`;
+  }
+  h+=`<h2 class="h2">Fill-ups</h2><div class="list">${rows.length?rows.map(f=>`<div class="row"><div><div class="t">${fdate(f.date)} · ${f.gal.toFixed(1)} gal</div><div class="s">${mi(f.odo)} mi · $${f.price.toFixed(2)}/gal${f.full?'':' · partial'}${f.imported?' · imported':''}</div></div><div class="v">${usd(f.gal*f.price)}<div class="s">${f._mpg?f._mpg.toFixed(1)+' mpg':'—'}</div></div></div>`).join(''):'<div class="empty">No fill-ups for this vehicle yet.</div>'}</div>`;
+  return h;
+}
+function partsScreen(){
+  const vid=ui.partsVid||activeId();
+  return `<div class="hdr"><h1>Parts</h1>${vehChip(vid,'pickPartsVid')}</div>`+tripBar()+partsList(vid);
+}
+function partsList(vid){
+  const rows=S.parts.filter(x=>x.vid===vid).sort((a,b)=>b.date.localeCompare(a.date));
+  const yr=S.today.slice(0,4)+'-01-01'; const spent=rows.filter(x=>x.date>=yr).reduce((a,b)=>a+b.cost,0);
+  const shelf=rows.filter(x=>!x.installed);
+  let h=`<div class="tiles"><div class="tile"><div class="lbl">Parts this year</div><div class="big" style="font-size:28px">${usd0(spent)}</div></div><div class="tile"><div class="lbl">On the shelf</div><div class="big" style="font-size:28px">${shelf.length}</div></div></div>
+   <div class="hint">Parts you bought outside a shop visit: spares, upgrades, things you put on yourself. They count toward Costs as their own category.</div>`;
+  const row=x=>`<div class="row"><div style="min-width:0"><div class="t">${esc(x.name)}${x.qty>1?' \u00d7 '+x.qty:''}</div><div class="s">${[fdate(x.date),x.partNo,x.store].filter(Boolean).map(esc).join(' \u00b7 ')}</div>${x.installed?`<div class="s">Installed${x.instOdo?' at '+mi(x.instOdo)+' mi':''}</div>`:`<button class="btn small ghost" style="margin-top:6px;min-height:36px" data-act="installPart" data-pid="${x.id}">Mark installed</button>`}</div><div class="v">${usd(x.cost)}${x.installed?'':'<div><span class="pill warn" style="margin-top:4px">On the shelf</span></div>'}</div></div>`;
+  h+=`<h2 class="h2">Parts bought</h2><div class="list">${rows.length?rows.map(row).join(''):'<div class="empty">No parts logged for this vehicle yet.</div>'}</div>`;
+  return h;
+}
+function serviceScreen(){
+  const vid=ui.svcVid||activeId();
+  const rems=vehicleReminders(vid); const hist=S.service.filter(s=>s.vid===vid).sort((a,b)=>b.date.localeCompare(a.date));
+  let h=`<div class="hdr"><h1>Service</h1>${vehChip(vid,'pickSvcVid')}</div>`+tripBar();
+  h+=`<h2 class="h2">Coming up</h2>`;
+  if(!rems.length) h+=`<div class="card sub">No reminders yet. Add a service record and turn on "Remind me next time".</div>`;
+  rems.forEach(({r,st})=>{
+    h+=st.level==='ok'
+      ?`<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div style="font-size:16px;font-weight:600">${esc(r.type)}</div><div class="sub">${esc(st.text)}</div></div><span class="pill ok">On track</span></div>`
+      :`<div class="note ${st.level}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;border-radius:14px"><div><div style="font-size:16px;font-weight:700">${esc(r.type)}</div><div style="font-size:13px">${esc(st.text)}</div></div><button class="btn small" data-act="logIt" data-rid="${r.id}">Log it</button></div>`;
+  });
+  h+=`<h2 class="h2">History</h2><div class="list">${hist.length?hist.map(s=>`<div class="row"><div><div class="t">${esc(s.type)}</div><div class="s">${fdate(s.date)} · ${mi(s.odo)} mi${s.imported?' · imported':''}</div></div><div class="v">${usd(s.cost)}</div></div>`).join(''):'<div class="empty">No service records yet.</div>'}</div>`;
+  return h;
+}
+function costsScreen(){
+  const start=rangeStart(); const items=costItems(ui.costVid,start);
+  const tot=items.reduce((a,b)=>a+b.amt,0);
+  const cats=[['Fuel','#C2410C'],['Service and repairs','#0B5E57'],['Parts','#3B5B8C'],['Other','#7A6F5A']].map(([c,col])=>({c,col,amt:items.filter(i=>i.cat===c).reduce((a,b)=>a+b.amt,0)}));
+  const label={30:'last 30 days',year:'this year',all:'all time'}[ui.range];
+  let h=`<div class="hdr"><h1>Costs</h1><button class="vchip" data-act="pickCostVid">${ui.costVid==='all'?'All vehicles':esc(V(ui.costVid).model)}${I.down}</button></div>`;
+  h+=`<div class="seg" role="group" aria-label="Time range">${[['30','30 days'],['year','This year'],['all','All time']].map(([k,l])=>`<button data-act="range" data-r="${k}" aria-pressed="${ui.range===k}">${l}</button>`).join('')}</div>`;
+  h+=`<section class="card"><div class="sub">Total spent ${label}</div><div class="big" style="font-size:56px">${usd0(tot)}</div>
+     <div class="stack" style="margin-top:10px" role="img" aria-label="Split by category">${tot?cats.filter(c=>c.amt>0).map(c=>`<div style="flex:${c.amt};background:${c.col}"></div>`).join(''):''}</div></section>`;
+  const other=items.filter(i=>i.cat==='Other'); const subs=[...new Set(other.map(o=>o.sub))];
+  h+=`<div class="list">${cats.map(c=>`<div class="row"><div style="display:flex;align-items:center;gap:10px" class="t"><span class="sw" style="background:${c.col}"></span><span>${c.c==='Other'?'Other'+(subs.length?' ('+esc(subs.join(', ').toLowerCase())+')':''):c.c}</span></div><div class="v">${usd0(c.amt)}</div></div>`).join('')}</div>`;
+  const vs=ui.costVid==='all'?S.vehicles:[V(ui.costVid)];
+  h+=`<div class="tiles" style="flex-wrap:wrap">${vs.map(v=>{const c=costItems(v.id,start).reduce((a,b)=>a+b.amt,0);const m=milesSince(v.id,start);return `<div class="tile" style="min-width:140px"><div class="lbl">${esc(v.model)}</div><div class="big" style="font-size:28px">${usd0(c)}</div><div class="lbl">${m>0?'$'+(c/m).toFixed(2)+' per mile · '+mi(m)+' mi':'Not enough mileage yet'}</div></div>`}).join('')}</div>`;
+  h+=`<button class="btn ghost" data-act="sheet" data-sheet="expense">Add other expense</button>`;
+  return h;
+}
+function dataScreen(){
+  let h=`<div><button class="back" data-act="go" data-to="garage">${I.back}Garage</button></div><h1 style="margin:0;font-family:var(--display);font-size:38px;line-height:1.05">Import and export</h1>`;
+  h+=`<section class="card" style="display:flex;flex-direction:column;gap:6px"><h2 class="h2" style="margin:0">Export to CSV</h2>
+   <label class="field" for="exVid">Vehicle<select id="exVid"><option value="all">All vehicles</option>${S.vehicles.map(v=>`<option value="${v.id}">${esc(v.model)}</option>`).join('')}</select></label>
+   <label class="check"><input type="checkbox" id="exMil" checked>Mileage and trips</label>
+   <label class="check"><input type="checkbox" id="exFuel" checked>Fuel fill-ups</label>
+   <label class="check"><input type="checkbox" id="exSvc" checked>Service records</label>
+   <label class="check"><input type="checkbox" id="exParts" checked>Parts</label>
+   <label class="check"><input type="checkbox" id="exExp" checked>Other expenses</label>
+   <button class="btn" data-act="export">Export CSV</button>
+   ${ui.exportText!=null?`<label class="field" for="exOut">Preview (the real app saves this to Downloads or shares it)<textarea id="exOut" readonly>${esc(ui.exportText)}</textarea></label><button class="btn small ghost" data-act="copyExport">Copy CSV</button>`:''}
+  </section>`;
+  const imp=ui.imp;
+  h+=`<section class="card" style="display:flex;flex-direction:column;gap:10px"><h2 class="h2" style="margin:0">Import from CSV</h2>
+   <div class="note plain">Placeholder: MotoLog's export format hasn't been reviewed yet, so this uses a made-up sample file.</div>`;
+  if(!imp){ h+=`<button class="btn ghost" style="border-style:dashed;min-height:56px" data-act="impSample">Choose a CSV file (use sample)</button>` }
+  else if(imp.done){ h+=`<div class="note ok">Imported ${imp.added} rows into ${esc(V(imp.vid).model)}. ${imp.dupes} duplicate skipped.</div><button class="btn small ghost" data-act="impReset">Import another file</button>` }
+  else {
+    const fields=['Date','Odometer','Record type','Description','Total cost','Gallons','(skip)'];
+    h+=`<div class="sub">motolog_export.csv · ${IMPORT_ROWS.length} rows</div>
+     <label class="field" for="impVid">Import into<select id="impVid">${S.vehicles.map(v=>`<option value="${v.id}" ${v.id===imp.vid?'selected':''}>${esc(v.model)}</option>`).join('')}</select></label>
+     <div class="sub">Match your file's columns to the app's fields:</div>
+     <div style="border:1px solid var(--line);border-radius:12px;padding:0 12px">${IMPORT_COLS.map((c,i)=>`<div class="maprow"><label for="map${i}" style="font-weight:600">${c}</label><select id="map${i}">${fields.map(f=>`<option ${f===IMPORT_MAP[i]?'selected':''}>${f}</option>`).join('')}</select></div>`).join('')}</div>
+     <div class="note ok">Preview: ${IMPORT_ROWS.length} rows found, ${dupeCount(imp.vid)} duplicate will be skipped</div>
+     <button class="btn dark" data-act="impGo">Import ${IMPORT_ROWS.length-dupeCount(imp.vid)} rows</button>`;
+  }
+  h+=`</section>`;
+  return h;
+}
+const IMPORT_COLS=['Date','Odometer','Type','Description','Cost','Gallons'];
+const IMPORT_MAP=['Date','Odometer','Record type','Description','Total cost','Gallons'];
+const IMPORT_ROWS=[
+  {date:'2025-05-20',odo:43700,type:'Service',desc:'Tune-up',cost:120},
+  {date:'2025-06-14',odo:43980,type:'Service',desc:'Oil and filter',cost:38},
+  {date:'2025-09-02',odo:44610,type:'Fuel',desc:'',cost:49.11,gal:13.1},
+  {date:'2025-10-19',odo:44920,type:'Fuel',desc:'',cost:46.50,gal:12.4},
+  {date:'2026-04-06',odo:45512,type:'Service',desc:'Oil and filter',cost:41}
+];
+function dupeCount(vid){return IMPORT_ROWS.filter(r=>r.type==='Service'&&S.service.some(s=>s.vid===vid&&s.date===r.date&&s.odo===r.odo)).length}
+
+function linkScreen(){
+  const L=ui.link; const existing=L.vid?V(L.vid):null;
+  let h=`<div><button class="back" data-act="${existing?'openVehicle':'go'}" data-vid="${existing?existing.id:''}" data-to="garage">${I.back}${existing?esc(existing.model):'Garage'}</button></div>
+   <h1 style="margin:0;font-family:var(--display);font-size:38px;line-height:1.05">${existing?'Link Bluetooth':'Add a vehicle'}</h1>`;
+  if(!existing){
+    h+=`<section class="card" style="display:flex;flex-direction:column;gap:10px"><h2 class="h2" style="margin:0">1 · The vehicle</h2>
+     <div class="two"><label class="field" for="lkYear">Year<input id="lkYear" inputmode="numeric" value="${esc(L.year)}"></label><label class="field" for="lkMake">Make<input id="lkMake" value="${esc(L.make)}"></label></div>
+     <label class="field" for="lkModel">Model or nickname<input id="lkModel" value="${esc(L.model)}"></label>
+     <label class="field" for="lkOdo">Current odometer (mi)<input id="lkOdo" inputmode="numeric" value="${esc(L.odo)}"></label></section>`;
+  }
+  h+=`<section class="card" style="display:flex;flex-direction:column;gap:8px"><h2 class="h2" style="margin:0">${existing?'Pick':'2 · Pick'} its Bluetooth</h2>
+   <div class="hint">Devices already paired with this phone. Pick the one that connects when this vehicle starts: the radio, hands-free, or a plug-in adapter.</div>`;
+  S.devices.forEach(d=>{
+    const owner=vehicleForDevice(d.id); const taken=owner&&owner.id!==L.vid;
+    h+=`<button class="devopt" data-act="pickDev" data-did="${d.id}" aria-pressed="${L.dev===d.id}" ${taken?'disabled':''}>${I.bt(20)}<div style="flex:1;min-width:0"><div class="t">${esc(d.name)}</div><div class="s sub">${esc(d.kind)}${taken?' · linked to '+esc(owner.model):''}${d.kind==='Headphones'?' · not a car, trips would be wrong':''}</div></div></button>`;
+  });
+  h+=`<button class="devopt" data-act="pickDev" data-did="" aria-pressed="${L.dev===''}"><span style="width:20px"></span><div><div class="t">No Bluetooth</div><div class="s sub">I'll enter miles by hand</div></div></button>
+   <div class="hint">Don't see your car? Pair it in Android Bluetooth settings first, then come back.</div></section>
+   <button class="btn" data-act="saveLink">${existing?'Save link':'Add vehicle'}</button>`;
+  return h;
+}
+
+/* sheets */
+function vehOptions(sel){return S.vehicles.map(v=>`<option value="${v.id}" ${v.id===sel?'selected':''}>${esc(v.model)}${v.id===activeId()?(isConnected(v.id)?' (connected)':' (active)'):''}</option>`).join('')}
+function defaultNote(){const a=V(activeId());return `<div class="hint">Defaults to ${esc(a.model)} because it's ${isConnected(a.id)?'connected right now':'the last vehicle you used'}. Change it if this is for another vehicle.</div>`}
+function sheet(){
+  const s=ui.sheet; if(!s) return '';
+  let b='';
+  if(s.type==='fuel'){
+    const v=V(s.vid);
+    b=`<h2>Log fill-up</h2><label class="field" for="fVid">Vehicle<select id="fVid" data-act="sheetVid">${vehOptions(s.vid)}</select></label>${defaultNote()}
+     <div class="two"><label class="field" for="fDate">Date<input id="fDate" type="date" value="${S.today}"></label><label class="field" for="fOdo">Odometer<input id="fOdo" inputmode="numeric" value="${Math.round(liveOdo(v))}"></label></div>
+     <div class="two"><label class="field" for="fGal">Gallons<input id="fGal" inputmode="decimal" value="17.6"></label><label class="field" for="fPrice">Price per gal<input id="fPrice" inputmode="decimal" value="3.39"></label></div>
+     <div class="sub" id="fTotal"></div>
+     <label class="check"><input type="checkbox" id="fFull" checked>Filled the tank (needed for MPG)</label>
+     <button class="btn" data-act="saveFuel">Save fill-up</button>`;
+  }
+  if(s.type==='service'){
+    const v=V(s.vid); const r=S.reminders.find(x=>x.vid===s.vid&&x.type===s.stype);
+    b=`<h2>Add service record</h2><label class="field" for="sVid">Vehicle<select id="sVid" data-act="sheetVid">${vehOptions(s.vid)}</select></label>${defaultNote()}
+     <label class="field" for="sType">What was done<input id="sType" list="svcTypes" value="${esc(s.stype||'')}" placeholder="Oil and filter"><datalist id="svcTypes">${SERVICE_TYPES.map(t=>`<option value="${t}">`).join('')}</datalist></label>
+     <div class="two"><label class="field" for="sDate">Date<input id="sDate" type="date" value="${S.today}"></label><label class="field" for="sOdo">Odometer<input id="sOdo" inputmode="numeric" value="${Math.round(liveOdo(v))}"></label></div>
+     <label class="field" for="sCost">Cost ($)<input id="sCost" inputmode="decimal" value="${s.stype==='Oil and filter'?'68.00':''}"></label>
+     <label class="check"><input type="checkbox" id="sRem" ${r||!s.stype?'checked':''}>Remind me next time</label>
+     <div class="two"><label class="field" for="sMi">Every (miles)<input id="sMi" inputmode="numeric" value="${r?r.everyMi||'':5000}"></label><label class="field" for="sMo">or every (months)<input id="sMo" inputmode="numeric" value="${r?r.everyMo||'':6}"></label></div>
+     <div class="hint">Whichever comes first. Leave one blank to use only the other.</div>
+     <button class="btn" data-act="saveService">Save record</button>`;
+  }
+  if(s.type==='part'){
+    const v=V(s.vid);
+    b=`<h2>Add part</h2><label class="field" for="pVid">Vehicle<select id="pVid" data-act="sheetVid">${vehOptions(s.vid)}</select></label>${defaultNote()}
+     <label class="field" for="pName">Part<input id="pName" list="partNames" placeholder="Wiper blades"><datalist id="partNames">${PART_NAMES.map(t=>`<option value="${t}">`).join('')}</datalist></label>
+     <div class="two"><label class="field" for="pNo">Part number (optional)<input id="pNo" placeholder="ACDelco A3218C"></label><label class="field" for="pStore">Where bought<input id="pStore" list="stores" placeholder="AutoZone"><datalist id="stores">${[...new Set(S.parts.map(x=>x.store).filter(Boolean))].map(t=>`<option value="${esc(t)}">`).join('')}</datalist></label></div>
+     <div class="two"><label class="field" for="pDate">Date<input id="pDate" type="date" value="${S.today}"></label><label class="field" for="pQty">Qty<input id="pQty" inputmode="numeric" value="1"></label></div>
+     <label class="field" for="pCost">Total cost ($)<input id="pCost" inputmode="decimal"></label>
+     <label class="check"><input type="checkbox" id="pInst" checked>Already installed</label>
+     <label class="field" for="sOdo">Odometer when installed<input id="sOdo" inputmode="numeric" value="${Math.round(liveOdo(v))}"></label>
+     <div class="hint">Uncheck "Already installed" for spares. They wait under "On the shelf" until you mark them installed.</div>
+     <button class="btn" data-act="savePart">Save part</button>`;
+  }
+  if(s.type==='expense'){
+    b=`<h2>Add expense</h2><label class="field" for="eVid">Vehicle<select id="eVid">${vehOptions(s.vid)}</select></label>${defaultNote()}
+     <label class="field" for="eCat">Category<select id="eCat">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></label>
+     <label class="field" for="eDesc">Description<input id="eDesc" placeholder="Two rear tires"></label>
+     <div class="two"><label class="field" for="eDate">Date<input id="eDate" type="date" value="${S.today}"></label><label class="field" for="eCost">Cost ($)<input id="eCost" inputmode="decimal"></label></div>
+     <button class="btn" data-act="saveExpense">Save expense</button>`;
+  }
+  if(s.type==='correct'){
+    const v=V(ui.vid);
+    b=`<h2>Correct odometer</h2><div class="sub">GPS miles drift a little from the dash. Enter what the dash shows for ${esc(v.model)}.</div>
+     <label class="field" for="cOdo">Odometer on the dash (mi)<input id="cOdo" inputmode="numeric" value="${Math.round(liveOdo(v))}"></label>
+     <button class="btn" data-act="saveCorrect">Set odometer</button>`;
+  }
+  if(s.type==='reading'){
+    const v=V(ui.vid);
+    b=`<h2>Add mileage reading</h2><div class="sub">${esc(v.model)} has no Bluetooth link. Last reading: ${mi(v.odo)} mi.</div>
+     <label class="field" for="rOdo">Odometer now (mi)<input id="rOdo" inputmode="numeric" value="${Math.round(v.odo+35)}"></label>
+     <button class="btn" data-act="saveReading">Save reading</button>`;
+  }
+  if(s.type==='pick'){
+    const opts=(s.allowAll?[{id:'all',model:'All vehicles'}]:[]).concat(S.vehicles);
+    b=`<h2>Show vehicle</h2>${opts.map(v=>`<button class="devopt" data-act="pickDone" data-vid="${v.id}" aria-pressed="${v.id===s.cur}"><div style="flex:1"><div class="t">${esc(v.model)}</div>${v.id!=='all'&&v.id===activeId()?`<div class="sub">${isConnected(v.id)?'Connected now':'Active vehicle'}</div>`:''}</div></button>`).join('')}
+     ${s.allowAll?'':'<div class="hint">Picking another vehicle here is a manual override. It goes back to the connected vehicle the next time a car connects.</div>'}`;
+  }
+  return `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true" data-stop="1"><div class="grab"></div>${b}<button class="btn ghost" data-act="closeSheet">Cancel</button></div></div>`;
+}
+
+function renderPhone(){
+  const scr=$('#screen'); const keepScroll=scr.querySelector('.content')?.scrollTop||0; const prevScreen=renderPhone._last;
+  let body={garage,vehicle:vehicleScreen,fuel:fuelScreen,service:serviceScreen,parts:partsScreen,costs:costsScreen,data:dataScreen,link:linkScreen}[ui.screen]();
+  let fab='';
+  if(ui.screen==='fuel') fab=`<button class="fab" data-act="sheet" data-sheet="fuel">${I.plus}Log fill-up</button>`;
+  if(ui.screen==='parts') fab=`<button class="fab" data-act="sheet" data-sheet="part">${I.plus}Add part</button>`;
+  if(ui.screen==='service') fab=`<button class="fab" data-act="sheet" data-sheet="service">${I.plus}Add record</button>`;
+  const hu=ui.headsup?`<div class="headsup${ui.headsup.fresh?' anim':''}" role="alert"><div class="ic">${I.bell}</div><div><div class="app">Garage Log · now</div><div class="ti">${esc(ui.headsup.t)}</div><div class="bo">${esc(ui.headsup.b)}</div></div></div>`:'';
+  if(ui.headsup) ui.headsup.fresh=false;
+  const toast=ui.toast?`<div class="toast" role="status">${esc(ui.toast)}</div>`:'';
+  // keep any open sheet's form values across live re-renders
+  const vals={}; scr.querySelectorAll('.sheet input,.sheet select,.card input,.card select').forEach(el=>{if(el.id)vals[el.id]=el.type==='checkbox'?el.checked:el.value});
+  const focusId=document.activeElement&&scr.contains(document.activeElement)?document.activeElement.id:null;
+  scr.innerHTML=statusBar()+hu+`<div class="content">${body}</div>`+fab+nav()+sheet()+toast;
+  Object.entries(vals).forEach(([id,val])=>{const el=document.getElementById(id);if(el&&!el.dataset.fresh){if(el.type==='checkbox')el.checked=val;else el.value=val}});
+  if(focusId){const el=document.getElementById(focusId);el&&el.focus()}
+  if(prevScreen===ui.screen) scr.querySelector('.content').scrollTop=keepScroll;
+  renderPhone._last=ui.screen;
+  updateFuelTotal();
+}
+function updateFuelTotal(){const g=parseFloat($('#fGal')?.value),p=parseFloat($('#fPrice')?.value);const t=$('#fTotal');if(t)t.textContent=(g>0&&p>0)?'Total: '+usd(g*p):''}
+
+/* ---------- desk rendering ---------- */
+function renderDesk(){
+  $('#devices').innerHTML=S.devices.map(d=>{const v=vehicleForDevice(d.id);const on=S.connected===d.id;
+    return `<div class="dev"><span style="color:${on?'#0B5E57':'var(--stage-muted)'}">${I.bt(20)}</span><div class="grow"><div class="nm">${esc(d.name)}</div><div class="ln">${esc(d.kind)} · ${v?'linked to '+esc(v.model):'not linked to a vehicle'}</div></div>
+    <button class="cbtn ${on?'on':''}" data-act="${on?'disconnect':'connect'}" data-did="${d.id}">${on?'Disconnect':'Connect'}</button></div>`}).join('');
+  $('#speeds').innerHTML=SPEEDS.map(s=>`<button data-act="speed" data-s="${s.id}" aria-pressed="${S.speed===s.id}">${s.label}${s.id===1?' (55 mph)':''}</button>`).join('');
+  $('#simdate').textContent='Phone date: '+pd(S.today).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})+'. Jump ahead to see date-based service reminders come due.';
+  $('#log').innerHTML=S.log.length?S.log.map(l=>`<div>${l.t} · ${l.html}</div>`).join(''):'<div>Nothing yet. Connect Chevy Radio to start a trip in the Silverado.</div>';
+}
+function render(){renderPhone();renderDesk();save()}
+
+/* ---------- feedback ---------- */
+let toastT,huT;
+function toast(m){ui.toast=m;clearTimeout(toastT);toastT=setTimeout(()=>{ui.toast=null;renderPhone()},3200)}
+function notify(t,b){ui.headsup={t,b,fresh:true};clearTimeout(huT);huT=setTimeout(()=>{ui.headsup=null;renderPhone()},4500)}
+
+/* ---------- bluetooth + trips ---------- */
+function connect(did){
+  if(S.connected) disconnect(S.connected,true);
+  S.connected=did; const d=dev(did); const v=vehicleForDevice(did);
+  if(v){
+    S.trip={vid:v.id,miles:0,date:S.today}; S.lastActive=v.id; ui.fuelVid=null; ui.svcVid=null; ui.partsVid=null;
+    addLog(`<b>Connected</b> ${esc(d.name)} → ${esc(v.model)} is now active, trip started`);
+    notify('Trip started · '+v.model,'Connected to '+d.name+'. New entries will default to the '+v.model+'.');
+  } else {
+    addLog(`<b>Connected</b> ${esc(d.name)} → not linked to a vehicle, ignored`);
+  }
+}
+function disconnect(did,quiet){
+  const d=dev(did); S.connected=null;
+  if(S.trip){
+    const v=V(S.trip.vid); const m=Math.round(S.trip.miles*10)/10;
+    if(m>=0.1){
+      v.odo+=m; S.trips.push({id:nid(),vid:v.id,date:S.today,miles:m,odo:v.odo,kind:'auto'});
+      addLog(`<b>Disconnected</b> ${esc(d.name)} → trip ended, ${mi1(m)} mi added to ${esc(v.model)} (now ${mi(v.odo)})`);
+      notify('Trip saved · '+mi1(m)+' mi',v.model+' odometer is now '+mi(v.odo)+' mi.');
+      S.trip=null; checkReminders(v.id);
+    } else {
+      addLog(`<b>Disconnected</b> ${esc(d.name)} → trip under 0.1 mi, not saved`);
+      S.trip=null;
+    }
+  } else if(!quiet) addLog(`<b>Disconnected</b> ${esc(d.name)}`);
+}
+let lastTick=performance.now();
+setInterval(()=>{
+  const now=performance.now(); const dt=(now-lastTick)/1000; lastTick=now;
+  if(!S.trip) return;
+  const sp=SPEEDS.find(s=>s.id===S.speed)||SPEEDS[1];
+  S.trip.miles+=sp.mps*dt*(0.85+Math.random()*0.3);
+  const ae=document.activeElement; const typing=ae&&/^(INPUT|SELECT|TEXTAREA)$/.test(ae.tagName);
+  if(!ui.sheet&&!typing) renderPhone();
+  checkTripReminders();
+},500);
+let tripRemCheck=0;
+function checkTripReminders(){ if(++tripRemCheck%4) return; const before=JSON.stringify(ui.headsup); checkReminders(S.trip.vid); if(JSON.stringify(ui.headsup)!==before){renderDesk();save()} }
+setInterval(()=>save(),5000);
+
+/* ---------- actions ---------- */
+function num(id){const v=parseFloat(String($('#'+id)?.value||'').replace(/,/g,''));return isNaN(v)?null:v}
+function val(id){return ($('#'+id)?.value||'').trim()}
+function setOdoAtLeast(v,odo){if(odo>v.odo&&!(S.trip&&S.trip.vid===v.id)){S.trips.push({id:nid(),vid:v.id,date:S.today,miles:odo-v.odo,odo,kind:'manual'});v.odo=odo}}
+
+const A={
+  go(e){ui.screen=e.dataset.to;ui.sheet=null;ui.exportText=ui.screen==='data'?ui.exportText:null},
+  openVehicle(e){ui.vid=e.dataset.vid;ui.screen='vehicle'},
+  addVehicle(){ui.link={vid:null,year:'2016',make:'Honda',model:'CR-V',odo:'88400',dev:null};ui.screen='link'},
+  linkExisting(e){const v=V(e.dataset.vid);ui.link={vid:v.id,dev:v.bt||null};ui.screen='link'},
+  unlink(e){const v=V(e.dataset.vid);if(S.trip&&S.trip.vid===v.id){toast('Finish the current trip first: disconnect in the panel.');return}const d=dev(v.bt);v.bt=null;addLog(`<b>Unlinked</b> ${esc(d.name)} from ${esc(v.model)}`);toast(v.model+' switched to manual entry.')},
+  pickDev(e){ui.link.dev=e.dataset.did;ui.link.year=val('lkYear')||ui.link.year;ui.link.make=val('lkMake')||ui.link.make;ui.link.model=val('lkModel')||ui.link.model;ui.link.odo=val('lkOdo')||ui.link.odo},
+  saveLink(){
+    const L=ui.link; if(L.dev==null){toast('Pick a Bluetooth device, or choose No Bluetooth.');return}
+    if(L.vid){const v=V(L.vid);if(S.trip&&S.trip.vid===v.id){toast('Finish the current trip first.');return}v.bt=L.dev||null;addLog(L.dev?`<b>Linked</b> ${esc(dev(L.dev).name)} to ${esc(v.model)}`:`<b>Unlinked</b> ${esc(v.model)}`);ui.screen='vehicle';ui.vid=v.id;toast(L.dev?`Linked. Connect ${dev(L.dev).name} in the panel to try it.`:'Saved as manual entry.');return}
+    const year=val('lkYear'),make=val('lkMake'),model=val('lkModel'),odo=num('lkOdo');
+    if(!model||odo==null){toast('Enter a model and the current odometer.');return}
+    const v={id:'v'+nid(),year,make,model,odo,bt:L.dev||null};S.vehicles.push(v);
+    S.trips.push({id:nid(),vid:v.id,date:S.today,miles:0,odo,kind:'manual'});
+    addLog(`<b>Added</b> ${esc(year+' '+make+' '+model)}${v.bt?' linked to '+esc(dev(v.bt).name):' (manual entry)'}`);
+    ui.vid=v.id;ui.screen='vehicle';toast(v.bt?`${model} added. Connect ${dev(v.bt).name} in the panel to start a trip.`:`${model} added.`);
+  },
+  sheet(e){const t=e.dataset.sheet;ui.sheet={type:t,vid:t==='fuel'?(ui.fuelVid||activeId()):t==='service'?(ui.svcVid||activeId()):t==='part'?(ui.partsVid||activeId()):activeId()}},
+  logIt(e){const r=S.reminders.find(x=>x.id==e.dataset.rid);ui.sheet={type:'service',vid:r.vid,stype:r.type}},
+  closeSheet(e,ev){if(ev.target.closest('[data-stop]')&&!ev.target.closest('.btn'))return 'skip';ui.sheet=null},
+  sheetVid(e){ui.sheet.vid=e.value;const v=V(e.value);const o=$('#fOdo')||$('#sOdo');if(o){o.value=Math.round(liveOdo(v));o.dataset.fresh=1}},
+  saveFuel(){
+    const vid=val('fVid'),gal=num('fGal'),price=num('fPrice'),odo=num('fOdo'),date=val('fDate')||S.today;
+    if(!(gal>0&&price>0&&odo>0)){toast('Enter odometer, gallons and price.');return}
+    const v=V(vid);S.fuel.push({id:nid(),vid,date,odo,gal,price,full:$('#fFull').checked});setOdoAtLeast(v,odo);
+    const f=fuelRows(vid).find(x=>x.odo===odo&&x.gal===gal);
+    ui.sheet=null;ui.fuelVid=vid===activeId()?null:vid;
+    addLog(`<b>Fill-up</b> ${esc(v.model)} · ${gal} gal · ${usd(gal*price)}${vid!==activeId()?' (manual override)':''}`);
+    toast('Fill-up saved'+(f&&f._mpg?' · '+f._mpg.toFixed(1)+' mpg':''));
+  },
+  saveService(){
+    const vid=val('sVid'),type=val('sType'),odo=num('sOdo'),cost=num('sCost')||0,date=val('sDate')||S.today;
+    if(!type||!odo){toast('Enter what was done and the odometer.');return}
+    const v=V(vid);S.service.push({id:nid(),vid,date,odo,type,cost});setOdoAtLeast(v,odo);
+    let r=S.reminders.find(x=>x.vid===vid&&x.type.toLowerCase()===type.toLowerCase());
+    if($('#sRem').checked){const everyMi=num('sMi')||0,everyMo=num('sMo')||0;
+      if(everyMi||everyMo){if(!r){r={id:nid(),vid,type};S.reminders.push(r)}Object.assign(r,{everyMi,everyMo,lastOdo:odo,lastDate:date})}}
+    else if(r){r.lastOdo=odo;r.lastDate=date}
+    ui.sheet=null;ui.svcVid=vid===activeId()?null:vid;
+    addLog(`<b>Service</b> ${esc(type)} on ${esc(v.model)} · ${usd(cost)}`);
+    const rs=r&&remStatus(r);toast('Record saved'+(rs?' · next '+rs.text.toLowerCase():''));
+  },
+  savePart(){
+    const vid=val('pVid'),name=val('pName'),cost=num('pCost'),date=val('pDate')||S.today,inst=$('#pInst').checked,odo=num('sOdo');
+    if(!name||!(cost>=0)||cost===null){toast('Enter the part and what it cost.');return}
+    const v=V(vid);const p={id:nid(),vid,date,odo:Math.round(liveOdo(v)),name,partNo:val('pNo'),store:val('pStore'),qty:Math.max(1,num('pQty')||1),cost,installed:inst};
+    if(inst&&odo){p.instOdo=odo;setOdoAtLeast(v,odo)}
+    S.parts.push(p);ui.sheet=null;ui.partsVid=vid===activeId()?null:vid;
+    addLog(`<b>Part</b> ${esc(name)} for ${esc(v.model)} \u00b7 ${usd(cost)}${inst?'':' (on the shelf)'}`);toast(inst?'Part saved':'Part saved to the shelf');
+  },
+  installPart(e){const p=S.parts.find(x=>x.id==e.dataset.pid);p.installed=true;p.instOdo=Math.round(liveOdo(V(p.vid)));p.instDate=S.today;addLog(`<b>Installed</b> ${esc(p.name)} on ${esc(V(p.vid).model)} at ${mi(p.instOdo)} mi`);toast(p.name+' marked installed')},
+  pickPartsVid(){ui.sheet={type:'pick',target:'partsVid',cur:ui.partsVid||activeId()}},
+  saveExpense(){
+    const vid=val('eVid'),cost=num('eCost'),date=val('eDate')||S.today;
+    if(!(cost>0)){toast('Enter the cost.');return}
+    S.expenses.push({id:nid(),vid,date,cat:val('eCat'),desc:val('eDesc'),cost,odo:Math.round(liveOdo(V(vid)))});
+    ui.sheet=null;addLog(`<b>Expense</b> ${esc(val('eCat'))} on ${esc(V(vid).model)} · ${usd(cost)}`);toast('Expense saved');
+  },
+  saveCorrect(){
+    const v=V(ui.vid),n=num('cOdo');if(n==null){return}
+    const cur=liveOdo(v),delta=Math.round((n-cur)*10)/10; v.odo+=delta;
+    S.trips.push({id:nid(),vid:v.id,date:S.today,miles:delta,odo:v.odo,kind:'correction'});
+    ui.sheet=null;addLog(`<b>Odometer corrected</b> ${esc(v.model)} ${delta>=0?'+':''}${mi1(delta)} mi → ${mi(n)}`);toast('Odometer set to '+mi(n)+' mi');checkReminders(v.id);
+  },
+  saveReading(){
+    const v=V(ui.vid),n=num('rOdo');if(n==null||n<v.odo){toast('Enter a reading at or above '+mi(v.odo)+'.');return}
+    const d=n-v.odo;v.odo=n;S.trips.push({id:nid(),vid:v.id,date:S.today,miles:d,odo:n,kind:'manual'});S.lastActive=v.id;
+    ui.sheet=null;addLog(`<b>Mileage reading</b> ${esc(v.model)} +${mi(d)} mi`);toast('+'+mi(d)+' mi added to '+v.model);checkReminders(v.id);
+  },
+  pickFuelVid(){ui.sheet={type:'pick',target:'fuelVid',cur:ui.fuelVid||activeId()}},
+  pickSvcVid(){ui.sheet={type:'pick',target:'svcVid',cur:ui.svcVid||activeId()}},
+  pickCostVid(){ui.sheet={type:'pick',target:'costVid',cur:ui.costVid,allowAll:true}},
+  pickDone(e){const t=ui.sheet.target,id=e.dataset.vid;ui[t]=(t!=='costVid'&&id===activeId())?null:id;ui.sheet=null},
+  range(e){ui.range=e.dataset.r},
+  export(){
+    const vid=val('exVid');const ok=x=>vid==='all'||x.vid===vid;const q=s=>/[",]/.test(s)?'"'+String(s).replace(/"/g,'""')+'"':s;
+    const lines=['vehicle,date,record_type,odometer,miles,description,gallons,price_per_gal,cost'];const rows=[];
+    if($('#exMil').checked)S.trips.filter(ok).forEach(t=>rows.push([V(t.vid).model,t.date,t.kind==='auto'?'trip':t.kind==='manual'?'reading':'correction',Math.round(t.odo),t.miles,'','','','']));
+    if($('#exFuel').checked)S.fuel.filter(ok).forEach(f=>rows.push([V(f.vid).model,f.date,'fuel',f.odo,'',f.full?'full tank':'partial',f.gal,f.price,(f.gal*f.price).toFixed(2)]));
+    if($('#exSvc').checked)S.service.filter(ok).forEach(s=>rows.push([V(s.vid).model,s.date,'service',s.odo,'',s.type,'','',s.cost.toFixed(2)]));
+    if($('#exParts').checked)S.parts.filter(ok).forEach(x=>rows.push([V(x.vid).model,x.date,'part',x.instOdo||x.odo||'','',x.name+(x.partNo?' ('+x.partNo+')':'')+(x.store?' from '+x.store:'')+(x.qty>1?' x'+x.qty:'')+(x.installed?'':' [on shelf]'),'','',x.cost.toFixed(2)]));
+    if($('#exExp').checked)S.expenses.filter(ok).forEach(x=>rows.push([V(x.vid).model,x.date,'expense',x.odo||'','',x.cat+(x.desc?': '+x.desc:''),'','',x.cost.toFixed(2)]));
+    rows.sort((a,b)=>a[1].localeCompare(b[1]));ui.exportText=lines.concat(rows.map(r=>r.map(q).join(','))).join('\n');
+    addLog(`<b>Exported</b> ${rows.length} rows to CSV`);
+  },
+  copyExport(){const t=ui.exportText;try{navigator.clipboard.writeText(t).then(()=>{toast('CSV copied');renderPhone()},()=>{$('#exOut').select();toast('Press Ctrl+C to copy');renderPhone()})}catch(e){$('#exOut').select()}return 'skip'},
+  impSample(){ui.imp={vid:S.vehicles.find(v=>v.model==='Barracuda')?.id||S.vehicles[0].id}},
+  impReset(){ui.imp=null},
+  impGo(){
+    const vid=val('impVid');let added=0,dupes=0;
+    IMPORT_ROWS.forEach(r=>{
+      if(r.type==='Service'){if(S.service.some(s=>s.vid===vid&&s.date===r.date&&s.odo===r.odo)){dupes++;return}S.service.push({id:nid(),vid,date:r.date,odo:r.odo,type:r.desc,cost:r.cost,imported:true});added++}
+      else{if(S.fuel.some(f=>f.vid===vid&&f.date===r.date&&f.odo===r.odo)){dupes++;return}S.fuel.push({id:nid(),vid,date:r.date,odo:r.odo,gal:r.gal,price:Math.round(r.cost/r.gal*100)/100,full:true,imported:true});added++}
+    });
+    ui.imp={vid,done:true,added,dupes};addLog(`<b>Imported</b> ${added} rows into ${esc(V(vid).model)}, ${dupes} duplicate skipped`);
+  },
+  connect(e){connect(e.dataset.did)},
+  disconnect(e){disconnect(e.dataset.did)},
+  speed(e){S.speed=+e.dataset.s},
+  jump(e){const n=+e.dataset.days;S.today=addDays(S.today,n);addLog(`<b>Time</b> jumped ahead ${n} days`);S.vehicles.forEach(v=>checkReminders(v.id))},
+  reset(){clearTimeout(huT);clearTimeout(toastT);S=seed();Object.assign(ui,{screen:'garage',vid:null,fuelVid:null,svcVid:null,partsVid:null,costVid:'all',range:'year',sheet:null,toast:null,headsup:null,link:null,imp:null,exportText:null});addLog('<b>Reset</b> back to the sample data')}
+};
+document.addEventListener('click',ev=>{
+  const el=ev.target.closest('[data-act]'); if(!el||el.tagName==='SELECT') return;
+  const r=A[el.dataset.act]?.(el,ev); if(r==='skip') return;
+  if(['go','openVehicle','addVehicle','linkExisting'].includes(el.dataset.act)){const c=$('#screen .content');if(c)c.scrollTop=0;renderPhone._last=null}
+  render();
+});
+document.addEventListener('change',ev=>{const el=ev.target;if(el.dataset.act==='sheetVid'){A.sheetVid(el)}if(el.id==='impVid'&&ui.imp){ui.imp.vid=el.value;render()}});
+document.addEventListener('input',ev=>{if(ev.target.id==='fGal'||ev.target.id==='fPrice')updateFuelTotal()});
+document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&ui.sheet){ui.sheet=null;render()}});
+render();
+})();
+</script>
+
+</body>
+</html>
