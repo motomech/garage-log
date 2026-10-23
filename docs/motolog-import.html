@@ -117,7 +117,7 @@ tr.rec td{background:var(--desk-chip)}
 
 <header class="intro">
   <h1>Bringing over your MotoLog data</h1>
-  <p>Built from your real exports of the 67 Barracuda. MotoLog's Share export (Share.xlsx) holds everything in one file: the vehicle, 8 fill-ups with the odometer you typed, 182 trips and 11 bills ($1,857.65 of parts). That's the file to import; the Fuel and Trip reports are only a fallback. The app reads it directly, so there's no converting on the computer. Sample screens below; nothing is built yet.</p>
+  <p>Built from your real exports of the 67 Barracuda. MotoLog's Share export (Share.xlsx) holds everything in one file: the vehicle, 8 fill-ups with the odometer you typed, 182 trips and 11 bills ($1,857.65). That's the file to import; the Fuel and Trip reports are only a fallback. The app reads it directly, so there's no converting on the computer. Sample screens below; nothing is built yet.</p>
 </header>
 
 <section class="phones" aria-label="Mock-up screens">
@@ -160,8 +160,7 @@ tr.rec td{background:var(--desk-chip)}
           <h3>What will be added</h3>
           <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Trips<span class="v">182 · 1,818 mi</span></div>
           <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Fill-ups<span class="v">8 · 72.9 gal</span></div>
-          <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Bills as parts<span class="v">11 · $1,858</span></div>
-          <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Business / Private tags<span class="v">68 / 114</span></div>
+          <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Bills (expenses)<span class="v">11 · $1,858</span></div>
           <span class="hint">Jan 14, 2025 to Oct 18, 2026. Odometer will be set to 27,016 mi. Anything already in Garage Log is skipped.</span>
         </div>
         <div class="btns"><span class="btn">Review fill-ups</span><span class="btn p">Import</span></div>
@@ -205,7 +204,7 @@ tr.rec td{background:var(--desk-chip)}
           <div class="rowx">Trips added<span class="v">182</span></div>
           <div class="rowx">Fill-ups added<span class="v">8</span></div>
           <div class="rowx">Skipped (already there)<span class="v">0</span></div>
-          <div class="rowx">Parts added<span class="v">11</span></div>
+          <div class="rowx">Bills added<span class="v">11</span></div>
           <div class="rowx">Fuel cost<span class="v">$247.60</span></div>
         </div>
         <div class="card">
@@ -238,10 +237,9 @@ tr.rec td{background:var(--desk-chip)}
       <tr><td>Start, End, Distance</td><td>Start and end time, miles</td><td>No odometer here; it's counted forward from the first fill-up reading.</td></tr>
       <tr><td>Start, Through, Finish</td><td>From and to labels, stops in a note</td><td>No GPS track, so no route map.</td></tr>
       <tr><td>Max speed, Average speed, Drive duration</td><td>Top speed, minutes</td><td>Shown on the trip page like recorded trips.</td></tr>
-      <tr><td>Tags</td><td>Trip tag</td><td>See question 1.</td></tr>
-      <tr><td>Username, Email</td><td>Not stored</td><td></td></tr>
+      <tr><td>Tags, Username, Email</td><td>Not stored</td><td>Business / Private tags dropped (Ron, 2026-10-23).</td></tr>
       <tr class="rec"><td colspan="3"><b>#Bill</b> (11, $1,857.65)</td></tr>
-      <tr><td>Date, Mileage, Item name, quantity, price</td><td>Parts (name, qty, cost, date, odometer)</td><td>All 11 are parts for the car (rear axle shafts, starter, brake lines...). One bill with several items becomes several parts. Mileage 0 means none was entered.</td></tr>
+      <tr><td>Date, Mileage, Item name, quantity, price</td><td>Expense in a new "Bills" category (item names as the description, cost, date, odometer)</td><td>Kept apart from the Parts tab (Ron, 2026-10-23). Shows in Costs as its own category. Mileage 0 means none was entered.</td></tr>
       <tr><td>Revenue = Yes</td><td>Skipped</td><td>Revenues are left out for now. None in your file.</td></tr>
     </tbody>
   </table></div>
@@ -269,17 +267,21 @@ tr.rec td{background:var(--desk-chip)}
       <tr><td>Start, End</td><td>Odometer at the end of the trip</td><td>The highest End becomes the vehicle's odometer (27,016 mi).</td></tr>
       <tr><td>Distance</td><td>Trip miles</td><td></td></tr>
       <tr><td>Route (numbered stops)</td><td>From and to labels</td><td>First and last stop. Middle stops go in the trip's note. No GPS track, so no map.</td></tr>
-      <tr><td>Tags (Business / Private)</td><td>New: trip tag</td><td>See question 1.</td></tr>
-      <tr><td>Rate, Distance × Rate, Fixed amount</td><td>Not stored for now</td><td>MotoLog's mileage rate ($0.50/mi on business trips). See question 1.</td></tr>
+      <tr><td>Tags (Business / Private)</td><td>Not stored</td><td>Dropped (Ron, 2026-10-23).</td></tr>
+      <tr><td>Rate, Distance × Rate, Fixed amount</td><td>Not stored</td><td>MotoLog's mileage rate ($0.50/mi on business trips).</td></tr>
       <tr><td>Fuel expenses</td><td>Not stored</td><td>MotoLog's per-trip fuel estimate. The real fill-ups already carry the cost, so keeping it would count fuel twice.</td></tr>
       <tr><td>Title, Note</td><td>Trip note</td><td>Most trips say "Trip" or nothing.</td></tr>
     </tbody>
   </table></div>
 
-  <h2>Questions for you</h2>
-  <div class="q"><b>1. Do you use the Business / Private tags?</b><span>68 of your 182 trips are tagged Business (642 mi). My suggestion: keep the tag on each trip and show business miles per year on the Costs tab, which is what you'd need for taxes or reimbursement. Rates and reimbursement amounts can wait. If you never use it, I'll drop the tags.</span></div>
-  <div class="q"><b>2. Bills: parts or expenses?</b><span>All 11 bills are parts you bought for the Barracuda, so I'd import them into the Parts tab as installed. Other cars' bills might be insurance or tags; the preview could let you switch a bill to an expense.</span></div>
-  <div class="q"><b>3. Your other vehicles?</b><span>Each file is one vehicle. Export the same reports for each vehicle; you can pick all of them in one go.</span></div>
+  <h2>Decided</h2>
+  <ul>
+    <li>Import MotoLog's Share export (one .xlsx per vehicle). Fuel and Trip reports are optional extras for make, model, year, plate and VIN.</li>
+    <li>Business / Private trip tags are not imported.</li>
+    <li>Bills go to Costs as expenses in a "Bills" category, not to the Parts tab.</li>
+  </ul>
+  <h2>Still to do</h2>
+  <p>Export the Share file for your other vehicles when you're ready to import them.</p>
 </article>
 
 </body>
