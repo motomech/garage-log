@@ -24,6 +24,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +67,7 @@ class MainActivity : ComponentActivity() {
 
     /** From the "Tap to track this trip" notification: the app is in front now, so the trip can start. */
     private fun handle(intent: Intent?) {
+        if (intent?.action == Notifs.ACTION_LOG_FUEL) { UiBus.logFuel.value = true; return }
         if (intent?.action != BtReceiver.ACTION_TAP_START_TRIP) return
         val d = Repo.current
         val v = d.vehicleForAddress(d.connectedAddress) ?: return
@@ -85,6 +87,12 @@ sealed interface Page {
     data class VehicleP(val vid: Long) : Page
     data class LinkP(val vid: Long?) : Page
     data object DataP : Page
+    data object PlacesP : Page
+}
+
+/** Things outside the UI (a notification tap) ask the UI to do. */
+object UiBus {
+    val logFuel = kotlinx.coroutines.flow.MutableStateFlow(false)
 }
 
 /** Shared UI actions so screens don't each need a long list of callbacks. */
@@ -128,6 +136,15 @@ fun AppUi() {
     val fv = pick(fuelVid) ?: active
     val sv = pick(svcVid) ?: active
     val pv = pick(partsVid) ?: active
+
+    // "At Murphy USA? Tap to log a fill-up" opens the fill-up form for the vehicle that stopped.
+    val logFuel by UiBus.logFuel.collectAsStateWithLifecycle()
+    LaunchedEffect(logFuel) {
+        if (!logFuel) return@LaunchedEffect
+        UiBus.logFuel.value = false
+        val vid = Repo.current.lastStop?.vid?.takeIf { Repo.current.vehicle(it) != null } ?: Repo.current.activeId()
+        if (vid != null) { tab = Tab.FUEL; page = null; fuelVid = null; sheet = SheetReq.Fuel(null, vid) }
+    }
 
     val nav = remember {
         Nav(
@@ -181,6 +198,7 @@ fun AppUi() {
                     is Page.VehicleP -> VehicleScreen(d, p.vid)
                     is Page.LinkP -> LinkScreen(d, p.vid)
                     Page.DataP -> DataScreen(d)
+                    Page.PlacesP -> PlacesScreen(d)
                     null -> when (tab) {
                         Tab.GARAGE -> GarageScreen(d)
                         Tab.FUEL -> if (fv == null) NoVehicles() else FuelScreen(d, fv) { fuelVid = it }
