@@ -23,10 +23,11 @@ fun AppData.toCsv(c: ExportChoice): Pair<String, Int> {
     val rows = mutableListOf<List<String>>()
     if (c.mileage) trips.filter { ok(it.vid) }.forEach {
         val kind = when (it.kind) { TripKind.AUTO -> "trip"; TripKind.MANUAL -> "reading"; else -> "correction" }
-        rows += listOf(name(it.vid), it.date, kind, n0(it.odo), num(it.miles), "", "", "", "")
+        rows += listOf(name(it.vid), it.date, kind, n0(it.odo), num(it.miles), routeLabel(it) ?: "", "", "", "")
     }
     if (c.fuel) fuel.filter { ok(it.vid) }.forEach {
-        rows += listOf(name(it.vid), it.date, "fuel", n0(it.odo), "", if (it.full) "full tank" else "partial", num(it.gal), n2(it.price), n2(it.total))
+        rows += listOf(name(it.vid), it.date, "fuel", n0(it.odo), "", (if (it.full) "full tank" else "partial") +
+            (if (it.station.isNotBlank()) " at ${it.station}" + (if (it.stationAddr.isNotBlank()) ", ${it.stationAddr}" else "") else ""), num(it.gal), n2(it.price), n2(it.total))
     }
     if (c.service) service.filter { ok(it.vid) }.forEach {
         rows += listOf(name(it.vid), it.date, "service", n0(it.odo), "", it.type + if (it.notes.isNotBlank()) ": " + it.notes else "", "", "", n2(it.cost))
