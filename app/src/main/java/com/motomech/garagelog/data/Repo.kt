@@ -35,6 +35,23 @@ object Repo {
     fun update(block: (AppData) -> AppData) {
         val next = block(_data.value)
         if (next == _data.value) return
+        write(next)
+    }
+
+    /** Swaps in a whole new data set (restoring a backup). */
+    @Synchronized
+    fun replaceAll(next: AppData) = write(next)
+
+    /** The data as saved in garage.json, for backups. */
+    @Synchronized
+    fun snapshot(): String = json.encodeToString(AppData.serializer(), _data.value)
+
+    fun decode(text: String): AppData = json.decodeFromString(AppData.serializer(), text)
+
+    /** When the saved data last changed. */
+    val savedAt: Long get() = file.lastModified()
+
+    private fun write(next: AppData) {
         _data.value = next
         val tmp = File(file.parentFile, "garage.json.tmp")
         tmp.writeText(json.encodeToString(AppData.serializer(), next))
@@ -66,6 +83,7 @@ fun AppData.deleteVehicle(vid: Long) = copy(
     reminders = reminders.filter { it.vid != vid },
     expenses = expenses.filter { it.vid != vid },
     parts = parts.filter { it.vid != vid },
+    docs = docs.filter { it.vid != vid },
     trip = trip?.takeIf { it.vid != vid },
     lastActive = if (lastActive == vid) null else lastActive,
 )
@@ -142,6 +160,12 @@ fun AppData.installPart(pid: Long): AppData {
 fun AppData.saveExpense(e: Expense): AppData =
     if (e.id == 0L) withNewId { id -> copy(expenses = expenses + e.copy(id = id)) }
     else copy(expenses = expenses.map { if (it.id == e.id) e else it })
+
+fun AppData.saveDoc(doc: Doc): AppData =
+    if (doc.id == 0L) withNewId { id -> copy(docs = docs + doc.copy(id = id)) }
+    else copy(docs = docs.map { if (it.id == doc.id) doc else it })
+
+fun AppData.deleteDoc(id: Long) = copy(docs = docs.filter { it.id != id })
 
 fun AppData.deleteFuel(id: Long) = copy(fuel = fuel.filter { it.id != id })
 fun AppData.deleteService(id: Long) = copy(service = service.filter { it.id != id })

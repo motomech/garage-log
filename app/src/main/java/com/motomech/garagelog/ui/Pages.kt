@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.motomech.garagelog.R
 import com.motomech.garagelog.data.AppData
+import com.motomech.garagelog.data.Backup
+import com.motomech.garagelog.data.DocFiles
 import com.motomech.garagelog.data.ExportChoice
 import com.motomech.garagelog.data.Repo
 import com.motomech.garagelog.data.addVehicle
@@ -47,6 +49,20 @@ import com.motomech.garagelog.data.replaceVehicle
 import com.motomech.garagelog.data.toCsv
 import com.motomech.garagelog.data.today
 import com.motomech.garagelog.data.vehicle
+import com.motomech.garagelog.data.Level
+import com.motomech.garagelog.data.relday
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /* ---------------- Add a vehicle / link Bluetooth ---------------- */
 
@@ -149,8 +165,13 @@ fun LinkScreen(d: AppData, vid: Long?) {
     ) { Text(if (existing == null) "Add vehicle" else "Save", fontSize = 16.sp) }
     if (existing != null) {
         TextButton(onClick = { askDelete = true }, modifier = Modifier.fillMaxWidth()) { Text("Delete vehicle", color = G.bad) }
-        if (askDelete) Confirm("Delete ${existing.label}?", "This removes the vehicle and all its trips, fill-ups, service records, parts and expenses. Export a CSV first if you want a copy.",
-            "Delete", onYes = { Repo.update { it.deleteVehicle(existing.id) }; nav.toast("Vehicle deleted"); nav.open(null) }) { askDelete = false }
+        if (askDelete) Confirm("Delete ${existing.label}?", "This removes the vehicle and all its trips, fill-ups, service records, parts, expenses and documents. Export a CSV first if you want a copy.",
+            "Delete", onYes = {
+                val files = Repo.current.docs.filter { it.vid == existing.id }.flatMap { it.pages }
+                Repo.update { it.deleteVehicle(existing.id) }
+                DocFiles.delete(ctx, files)
+                nav.toast("Vehicle deleted"); nav.open(null)
+            }) { askDelete = false }
     }
 }
 
@@ -188,6 +209,7 @@ fun DataScreen(d: AppData) {
 
     TextButton(onClick = { nav.open(null) }) { Text("‹ Garage", color = G.ink) }
     ScreenTitle("Import and export")
+    BackupCard()
     GCard {
         H2("Export to CSV")
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -215,4 +237,88 @@ private fun Check(text: String, checked: Boolean, onChange: (Boolean) -> Unit) {
         Checkbox(checked, onChange)
         Text(text, color = G.ink)
     }
+}
+
+/* ---------------- Automatic backup ---------------- */
+
+@Composable
+private fun BackupCard() {
+    val nav = LocalNav.current
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var tick by remember { mutableIntStateOf(0) }
+    var busy by remember { mutableStateOf(false) }
+    var restoreUri by remember { mutableStateOf<Uri?>(null) }
+    val st = remember(tick, LocalResumeTick.current) { Backup.state(ctx) }
+
+    fun work(label: String, block: () -> Result<*>, done: (Any?) -> String) {
+        busy = true
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { block() }
+            busy = false; tick++
+            nav.toast(r.fold({ done(it) }, { "$label didn't work: ${it.message ?: "unknown problem"}" }))
+        }
+    }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val name = runCatching {
+            ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        }.getOrNull()
+        work("Backup", { Backup.setTarget(ctx, uri, name) }) { "Backed up. It will save there every night." }
+    }
+    val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> restoreUri = uri }
+
+    GCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Automatic backup", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = G.ink, modifier = Modifier.weight(1f))
+            if (st.uri != null) Switch(st.auto, { Backup.setAuto(ctx, it); tick++ },
+                colors = SwitchDefaults.colors(checkedTrackColor = G.accent))
+        }
+        Sub("One zip with all vehicles, logs, details, photos and PDFs. Saved every night if anything changed.")
+        if (st.uri == null) {
+            Gap(4.dp)
+            Button(onClick = { pick.launch("garage-log-backup.zip") }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = G.accent)) { Text("Choose where backups go") }
+            Hint("Pick Google Drive in the list, then a folder. You only do this once.")
+        } else {
+            Gap(4.dp)
+            Sub("Goes to: ${st.name ?: "the file you picked"}")
+            when {
+                st.lastError != null -> Note("Last backup failed: ${st.lastError}. Tap Back up now to try again, or choose the file again.", Level.BAD)
+                st.lastAt > 0 -> Sub("Last backup: ${whenText(st.lastAt)} · ${sizeText(st.lastBytes)}", color = G.ok)
+            }
+            if (!st.auto) Note("Automatic backup is off. Backups happen only when you tap Back up now.", Level.WARN)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { work("Backup", { Backup.run(ctx, force = true) }) { "Backed up (${sizeText(it as Long)})" } },
+                    enabled = !busy, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = G.accent)) {
+                    Text(if (busy) "Working…" else "Back up now")
+                }
+                GhostButton("Change file", Modifier.weight(1f)) { pick.launch("garage-log-backup.zip") }
+            }
+        }
+        TextButton(onClick = { open.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }, enabled = !busy) {
+            Text("Restore from a backup…", color = G.accent)
+        }
+    }
+    restoreUri?.let { uri ->
+        Confirm("Restore this backup?", "Everything in the app now is replaced by what's in the backup: vehicles, logs, details and documents.",
+            "Restore", onYes = {
+                work("Restore", { Backup.restore(ctx, uri) }) { r ->
+                    val x = r as Backup.Restored
+                    "Restored ${x.vehicles} vehicle${if (x.vehicles == 1) "" else "s"} and ${x.docs} document${if (x.docs == 1) "" else "s"}"
+                }
+            }) { restoreUri = null }
+    }
+}
+
+private fun whenText(ms: Long): String {
+    val t = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault())
+    val time = t.format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))
+    return relday(t.toLocalDate().toString()) + " " + time
+}
+
+private fun sizeText(b: Long): String = when {
+    b >= 1_000_000 -> String.format(Locale.US, "%.1f MB", b / 1_000_000.0)
+    b >= 1_000 -> "${b / 1_000} KB"
+    else -> "$b bytes"
 }

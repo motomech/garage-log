@@ -85,6 +85,7 @@ sealed interface Page {
     data class VehicleP(val vid: Long) : Page
     data class LinkP(val vid: Long?) : Page
     data object DataP : Page
+    data class DocP(val id: Long) : Page
 }
 
 /** Shared UI actions so screens don't each need a long list of callbacks. */
@@ -118,7 +119,11 @@ fun AppUi() {
     LifecycleResumeEffect(Unit) { tick++; onPauseOrDispose { } }
     BackHandler(page != null) {
         val p = page
-        page = if (p is Page.LinkP && p.vid != null) Page.VehicleP(p.vid) else null
+        page = when {
+            p is Page.LinkP && p.vid != null -> Page.VehicleP(p.vid)
+            p is Page.DocP -> d.docs.firstOrNull { it.id == p.id }?.let { Page.VehicleP(it.vid) }
+            else -> null
+        }
     }
     BackHandler(page == null && tab != Tab.GARAGE) { tab = Tab.GARAGE }
 
@@ -181,6 +186,7 @@ fun AppUi() {
                     is Page.VehicleP -> VehicleScreen(d, p.vid)
                     is Page.LinkP -> LinkScreen(d, p.vid)
                     Page.DataP -> DataScreen(d)
+                    is Page.DocP -> DocScreen(d, p.id)
                     null -> when (tab) {
                         Tab.GARAGE -> GarageScreen(d)
                         Tab.FUEL -> if (fv == null) NoVehicles() else FuelScreen(d, fv) { fuelVid = it }
