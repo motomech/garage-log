@@ -36,6 +36,10 @@ Working name. Process: talk ideas through, review mock-ups, refine until agreed,
    - **Automatic backup to Google Drive (decided 2026-10-23):** Ron wants automatic, not manual. One zip (garage.json plus all document files). The user picks the file once with Android's own "Save to" picker (Google Drive, a folder); the app keeps permission to that file and saves over it every night around 3 AM when anything changed (battery not low). "Back up now", "Change file", an on/off switch, and "Restore from a backup" (replaces everything, after a confirm). A failed nightly backup posts one notification. No Google Cloud project or sign-in. If Drive proves unreliable with background saves on Ron's phone, switch to the Google Drive API with Google sign-in (Ron would create a free Google Cloud project).
    - Not in CSV export (the backup covers them).
 
+8. Vehicle type icons (in discussion, 2026-10-23). Mock-up: https://claude.ai/artifact/JizQ7giPdsyFFyx18XyMLD
+   - Each vehicle gets a type picked on its Edit screen: Car, SUV, Pickup, Van, Motorcycle, Scooter, RV / camper, Boat, Trailer, ATV. New vehicles start as Car.
+   - The icon shows in a small tile left of the name on Garage cards, on the vehicle screen, and in the vehicle picker on entry forms.
+
 ## Interactive simulator
 
 Clickable prototype with sample data and simulated Bluetooth trips (review only, not the real app). Public copy: https://motomech.github.io/garage-log/ (GitHub Pages, from docs/index.html). Working copy: https://claude.ai/artifact/M3nJafop3ksKF29B9PwC9S
