@@ -160,7 +160,12 @@ fun AppUi() {
 
     val nav = remember {
         Nav(
-            open = { page = it },
+            open = { p ->
+                page = p
+                // Looking at a vehicle makes the Fuel, Service, Parts and Costs tabs show that vehicle.
+                val vid = (p as? Page.VehicleP)?.vid
+                if (vid != null) { fuelVid = vid; svcVid = vid; partsVid = vid; costVid = vid }
+            },
             sheet = { sheet = it },
             toast = { msg -> scope.launch { snack.currentSnackbarData?.dismiss(); snack.showSnackbar(msg) } },
         )
