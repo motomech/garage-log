@@ -28,6 +28,10 @@ Working name. Process: talk ideas through, review mock-ups, refine until agreed,
 4. Cost totals (by category, by vehicle, per mile)
 5. CSV import and export (column mapping, skip duplicates)
 6. Parts log: parts bought outside a service (part, part number, store, qty, cost). Marked installed (with odometer) or "on the shelf" for spares. Has its own tab in the bottom bar (Garage, Fuel, Service, Parts, Costs), counts as its own category in Costs, and is included in CSV export (added 2026-10-23; own tab per Ron).
+7. Vehicle details and documents (in discussion, 2026-10-23). Mock-up: https://claude.ai/artifact/WfBXxa5noe9FpdRXyybduu
+   - Details card on the vehicle screen: plate and state, VIN (copy button), color, engine, tire size, oil, insurance company and policy number, purchase date and price, notes, plus user-made fields. All optional. (Field list awaiting Ron's OK.)
+   - Documents per vehicle: take photo (several pages make one document), pick from photos, or attach a PDF. Type (Registration, Insurance card, Title, Smog / inspection, Warranty, Receipt, Other), name, optional expiry date with a reminder 30 days before (reminder awaiting Ron's OK). Viewer with zoom, Share, Edit, Replace, Delete. Files are stored in the app's private storage.
+   - **Automatic backup to Google Drive (decided 2026-10-23):** Ron wants automatic, not manual. One zip of everything (data plus documents). The user picks a file location in Google Drive once with Android's own picker; the app keeps permission to that file and overwrites it nightly when anything changed. Also "Back up now" and "Restore" buttons. No Google Cloud project or sign-in. If Drive proves unreliable with background saves on Ron's phone, switch to the Google Drive API with Google sign-in (Ron would create a free Google Cloud project).
 
 ## Interactive simulator
 
