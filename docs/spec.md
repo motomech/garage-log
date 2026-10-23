@@ -1,6 +1,8 @@
-# Garage Log: spec (draft, pre-build)
+# Garage Log: spec
 
 Working name. Process: talk ideas through, review mock-ups, refine until agreed, and only then build.
+
+**Status (2026-10-23):** first real Android build (version 0.1) made from the simulator's scope.
 
 ## Decisions so far
 
@@ -13,6 +15,10 @@ Working name. Process: talk ideas through, review mock-ups, refine until agreed,
 - **OBD2:** not required. Possible optional extra later.
 - **Repo:** `motomech/garage-log`, public (needed for free GitHub Pages). The simulator is published from `docs/index.html` (2026-10-23).
 - **MotoLog sections:** Revenues and Licenses are not carried over for now (deferred, 2026-10-23).
+- **Tech stack (2026-10-23):** native Kotlin with Jetpack Compose, min Android 8.0 (API 26), target Android 15 (API 35). Data is one JSON file in the app's private storage, included in Android's own backup.
+- **Install route (2026-10-23):** GitHub Actions builds a signed APK on every push. Each push to `main` publishes a GitHub release; the newest APK is always at https://github.com/motomech/garage-log/releases/latest/download/garage-log.apk. Ron downloads it on the phone and sideloads it (allow "install unknown apps" once). No Play Store.
+- **Signing key:** a fixed key is kept in the repo (`keystore/`) so every new APK installs as an update and keeps the data. Fine for a personal sideloaded app; a Play Store release would need a private key.
+- **Version 0.1 scope:** vehicles (add, edit, delete), Bluetooth-linked trips measured by GPS, active vehicle with manual override on every entry form, Fuel (MPG, cost per mile), Service with reminders by miles or months (notifications), Parts tab, Costs (by category, by vehicle, per mile), Correct odometer, manual mileage readings, CSV export. Entries can be edited or deleted by tapping them. CSV import waits for MotoLog's format.
 
 ## Features wanted
 
@@ -42,10 +48,12 @@ Clickable prototype with sample data and simulated Bluetooth trips (review only,
 - MotoLog's CSV export format has not been reviewed yet (needed for import mapping).
 - Active-vehicle indicator and manual override on the Fuel, Service, and Costs screens are not in the mock-ups yet.
 
-- Android tech stack: native Kotlin or a cross-platform framework.
-- Background trip tracking reliability on the user's phone (battery optimization). Test early.
+- Background trip tracking reliability on Ron's phone (battery optimization). The app has a setup card that asks for each needed permission, including "Battery: unrestricted". Test on real drives.
+- Short Bluetooth drop-outs currently end a trip; a grace period may be needed if this happens in practice.
 
 ## Technical notes
 
 - Bluetooth connect and disconnect events need the Bluetooth connect permission on Android 12 and later.
 - Trip tracking needs location access, including in the background, and a foreground service.
+- How a trip works in the app: the system's Bluetooth connect/disconnect broadcast wakes the app; if the device is linked to a vehicle, a foreground service ("Trip in progress" notification, with an End trip button) measures GPS distance (fused location, points with accuracy worse than 30 m or jumps faster than ~155 mph ignored). On disconnect the miles go onto that vehicle's odometer and into its trip list. If Android refuses to start tracking from the background, a "Tap to track this trip" notification appears instead.
+- Reminders are checked after every trip, on app open, and once a day in the background.
