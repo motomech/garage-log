@@ -116,6 +116,7 @@ fun GarageScreen(d: AppData) {
             Text("+", fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
     }
+    UpdateBanner(d)
     TripBar(d, endTrip())
     TrackingSetup(d)
     if (d.vehicles.isEmpty()) {

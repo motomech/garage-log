@@ -44,6 +44,8 @@ jobs:
         with:
           tag_name: v0.1.${{ github.run_number }}
           name: Garage Log 0.1.${{ github.run_number }}
-          body: Download garage-log.apk on your phone and tap it to install or update.
+          body: Download garage-log.apk on your phone and tap it to install or update. Once installed, the app offers new versions itself.
+          # Lists the merged pull requests; the app shows them as "What's new".
+          generate_release_notes: true
           files: garage-log.apk
           make_latest: true

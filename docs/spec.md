@@ -84,7 +84,7 @@ Ron asked to open a completed trip and see the exact route on a map, and approve
 - **Effort:** about two days of app work. Shares the trip end point with the gas station feature.
 - **Later options:** color the route by speed, GPX export per trip, monthly map of all trips for a vehicle.
 
-## App updates (proposed 2026-10-23, waiting for Ron)
+## App updates (agreed and built 2026-10-23)
 
 Ron asked whether new versions can reach the phone without re-downloading the APK each time. Mock-up and options: `docs/app-updates.html` (working copy https://claude.ai/artifact/AzrL7LcfNjvLSuL6ing4yt).
 
@@ -92,7 +92,9 @@ Ron asked whether new versions can reach the phone without re-downloading the AP
 - **Options looked at:** (1) in-app update check against GitHub Releases (recommended); (2) Obtainium, a free app that watches the GitHub repo and offers updates, nothing to build, usable today; (3) Play Store internal testing, fully automatic updates but $25 account, ID check, a new private signing key (one uninstall, restore from the Drive backup) and Play's background location forms; (4) Firebase App Distribution, no better than (1) and needs a Firebase project.
 - **Recommended design (1):** the app asks GitHub for the latest release (public repo, no key) when opened (at most every 6 hours) and once a day in the background with the reminder check. Release tag 0.1.N matches the app's version code N. A newer one shows a card at the top of Garage ("Update ready: 0.1.N", what's new, Later / Update) and one notification. Update downloads the APK (about 25 MB) inside the app with progress, checks it carries the same signing key, and opens Android's install screen; data is kept. Installing closes the app, so the Update button waits while a trip is in progress. An "App updates" card on Import and export shows the installed version, a "Check every day" switch and "Check now". Needs the "install apps" permission; the first update asks Ron once to allow Garage Log as an install source. On Android 12+ later self-updates may go through without the tap; try it on Ron's phone.
 - **Release notes:** the build would turn on GitHub's generated release notes (merged pull request titles) so the card can say what changed.
-- **Effort:** about half a day of app work. No server.
+- **Decision (2026-10-23):** Ron picked the in-app update check (option 1).
+- **How it is built:** `data/Updates.kt`. Checks `api.github.com/repos/motomech/garage-log/releases/latest` on app open (if the last check is over 6 hours old) and in a daily WorkManager job with network. The tag's last number is compared with the installed version code. The APK downloads to the app's cache, is checked for same package, newer version and same signing certificate, then goes to Android's PackageInstaller (on Android 12+ with "user action not required", so Android may skip its screen once Garage Log installed the previous update itself). The daily job posts one notification per new version on a new "App updates" channel. "Later" hides the Garage card until a newer version. The Update button is replaced by a note while a trip or pump stop is running. If Android hasn't allowed Garage Log to install apps yet, the card shows an "Allow updates" button that opens that setting. Release notes come from GitHub's generated notes (merged pull request titles), shown as "What's new".
+- **First time:** the version that adds this has to be downloaded the old way once. After that, updates come from the app.
 
 ## Open questions
 
