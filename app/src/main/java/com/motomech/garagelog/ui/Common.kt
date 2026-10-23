@@ -159,6 +159,7 @@ fun ListRow(
     first: Boolean = false,
     onClick: (() -> Unit)? = null,
     extra: @Composable ColumnScope.() -> Unit = {},
+    leading: @Composable () -> Unit = {},
     trailing: @Composable () -> Unit = {},
 ) {
     if (!first) HorizontalDivider(color = G.line)
@@ -166,7 +167,9 @@ fun ListRow(
         Modifier.fillMaxWidth().let { if (onClick != null) it.clickable(onClick = onClick) else it }
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        leading()
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = G.ink)
             if (sub != null) Sub(sub)

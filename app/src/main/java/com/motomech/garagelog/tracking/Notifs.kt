@@ -33,6 +33,8 @@ object Notifs {
     const val ID_TRIP = 1
     const val ID_TRIP_DONE = 2
     const val ID_START_FAILED = 3
+    /** Intent action MainActivity handles by opening Log fill-up. */
+    const val ACTION_LOG_FUEL = "com.motomech.garagelog.LOG_FUEL"
     const val ID_BACKUP_FAILED = 4
     private const val ID_DOC_BASE = 100_000
     private const val ID_REMINDER_BASE = 1000

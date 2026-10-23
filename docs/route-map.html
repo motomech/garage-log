@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Trip Route Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: same look as the Garage Log simulator. Three phones in a row (trip list, trip map, route settings), the proposal below. */
+:root{
+  --stage:#E7E3D8; --stage-fg:#1C1B19; --stage-muted:#5E5B54; --desk:#FFFFFF; --desk-line:#D6D0C2; --desk-chip:#F1EEE6; --bezel:#1C1B19;
+  /* app palette (the app is light, as in the simulator) */
+  --bg:#F3F0E8; --card:#FFFFFF; --line:#DDD8CC; --ink:#1C1B19; --muted:#5E5B54; --chip:#ECE8DD; --chip-ink:#4A4842;
+  --accent:#C2410C; --ok-bg:#D9EFEC; --ok:#0B5E57; --warn-bg:#FBE6DA; --warn:#9A3412;
+  /* map palette (OpenStreetMap-like light style) */
+  --m-land:#F2EFE9; --m-block:#E9E4DA; --m-road:#FFFFFF; --m-edge:#D9D2C4; --m-main:#F7D88A; --m-main-edge:#D9B45E; --m-water:#AAD3DF; --m-park:#C8E2B4; --m-label:#6E6858;
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }}
+:root[data-theme="dark"]{ --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--stage);color:var(--stage-fg);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 40px}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.intro,.phones,.doc{max-width:1080px;margin:0 auto}
+.intro h1{font-family:var(--display);font-size:36px;margin:0;line-height:1.05;text-wrap:balance}
+.intro p{margin:6px 0 0;color:var(--stage-muted);max-width:70ch}
+.phones{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;margin-top:22px}
+.cap{font-size:13px;color:var(--stage-muted);text-align:center;margin-top:8px;max-width:330px}
+
+/* ---------- phone ---------- */
+.phone{width:330px;max-width:100%;height:680px;border-radius:40px;background:var(--bezel);padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.22)}
+.screen{position:relative;width:100%;height:100%;border-radius:30px;overflow:hidden;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+.sbar{flex:none;height:26px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600}
+.content{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 14px 18px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin}
+.navbar{flex:none;height:58px;background:var(--card);border-top:1px solid var(--line);display:flex}
+.navbar span{flex:1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--muted)}
+.navbar span.on{color:var(--accent);font-weight:700}
+.back{min-height:40px;display:inline-flex;align-items:center;gap:2px;border:0;background:transparent;padding:0;font-size:15px;font-weight:500;color:var(--ink);align-self:flex-start}
+.hdr h1{margin:0;font-family:var(--display);font-size:30px;font-weight:700;line-height:1.05;text-wrap:balance}
+.sub{font-size:12.5px;color:var(--muted)}
+.h2{margin:4px 0 0;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.list{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:2px 12px}
+.row{display:flex;align-items:center;gap:10px;min-height:58px;border-bottom:1px solid var(--line);padding:7px 0}
+.row:last-child{border-bottom:0}
+.row .t{font-size:14.5px;font-weight:600} .row .s{font-size:12px;color:var(--muted)}
+.row .v{margin-left:auto;font-size:14.5px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.row .grow{flex:1;min-width:0}
+button.row{width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;color:var(--ink)}
+button.row:last-child{border-bottom:0}
+button.row[aria-pressed="true"] .t{color:var(--accent)}
+.thumb{flex:none;width:52px;height:44px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--m-land)}
+.thumb.none{display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);text-align:center;line-height:1.1;background:var(--chip)}
+.tiles{display:flex;gap:8px} .tiles>*{flex:1;min-width:0}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.tile .lbl{font-size:11px;color:var(--muted)}
+.big{font-family:var(--display);font-weight:600;font-size:24px;line-height:1.05;font-variant-numeric:tabular-nums}
+.btn{min-height:42px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;font-size:14.5px;padding:0 14px}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn.small{min-height:34px;font-size:13px;padding:0 10px;border-radius:9px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--chip);color:var(--chip-ink);white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.hint{font-size:12px;color:var(--muted);line-height:1.4}
+
+/* map */
+.map{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:var(--m-land);height:300px;flex:none}
+.map svg{display:block;width:100%;height:100%}
+.mapctl{position:absolute;right:8px;bottom:24px;display:flex;flex-direction:column;gap:6px}
+.mapctl span{width:34px;height:34px;border-radius:9px;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.attr{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.85);font-size:9.5px;color:#4A4842;padding:2px 6px;border-top-left-radius:6px}
+.scale{position:absolute;left:8px;bottom:6px;font-size:10px;color:#4A4842;display:flex;flex-direction:column;gap:2px}
+.scale i{display:block;width:54px;height:5px;border:2px solid #4A4842;border-top:0}
+
+/* settings */
+.set{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 12px}
+.set .r{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:52px;border-bottom:1px solid var(--line);font-size:14.5px}
+.set .r:last-child{border-bottom:0}
+.switch{flex:none;width:44px;height:26px;border-radius:13px;background:var(--ok);position:relative}
+.switch::after{content:"";position:absolute;right:3px;top:3px;width:20px;height:20px;border-radius:10px;background:#fff}
+.seg{display:flex;background:var(--chip);border-radius:10px;padding:3px;margin:2px 0 10px}
+.seg span{flex:1;min-height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--chip-ink)}
+.seg span.on{background:var(--card);color:var(--ink);font-weight:700}
+.meter{height:8px;border-radius:4px;background:var(--chip);overflow:hidden}
+.meter i{display:block;height:100%;width:6%;background:var(--ok)}
+
+/* ---------- proposal ---------- */
+.doc{margin-top:36px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+.panel{background:var(--desk);border:1px solid var(--desk-line);border-radius:16px;padding:16px 18px;min-width:0}
+.panel.wide{grid-column:1/-1}
+.panel h2{margin:0 0 6px;font-family:var(--display);font-size:23px;line-height:1.1}
+.panel p,.panel li{color:var(--stage-fg);max-width:72ch}
+.panel p{margin:0 0 8px}
+.panel ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.muted{color:var(--stage-muted)}
+.rec{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--ok);color:#fff;border-radius:999px;padding:2px 9px;vertical-align:middle;margin-left:6px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 10px;border-top:1px solid var(--desk-line)}
+th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--stage-muted);border-top:0}
+td:first-child{font-weight:600;white-space:nowrap}
+tr.pick td{background:var(--desk-chip)}
+.num{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="intro">
+  <h1>Trip route map</h1>
+  <p>Proposal for Garage Log, sample data only. Tap a trip in the first phone to see its route in the second. The app code is unchanged; this is a mock-up to agree on before anything is built.</p>
+</header>
+
+<section class="phones" aria-label="Mock-up screens">
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>8:14</span><span>●●● ▮</span></div>
+      <div class="content">
+        <button class="back" type="button">‹ Garage</button>
+        <div class="hdr"><h1>2019 Silverado</h1><div class="sub">Odometer 61,912 mi · Chevy Radio</div></div>
+        <h2 class="h2">Trips</h2>
+        <div class="list" id="tripList"></div>
+        <div class="hint">Trips recorded before this update have miles but no route.</div>
+      </div>
+      <div class="navbar"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></div>
+    </div></div>
+    <div class="cap">1. The trip list gets a small route preview. Tapping a trip opens its map.</div>
+  </div>
+
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>8:14</span><span>●●● ▮</span></div>
+      <div class="content" id="detail"></div>
+      <div class="navbar"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></div>
+    </div></div>
+    <div class="cap">2. The trip map: your route, start and end pins with saved place or gas station names, and the trip's numbers.</div>
+  </div>
+
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>8:14</span><span>●●● ▮</span></div>
+      <div class="content">
+        <button class="back" type="button">‹ Settings</button>
+        <div class="hdr"><h1>Trip routes</h1></div>
+        <div class="set">
+          <div class="r"><span>Save trip routes</span><span class="switch" role="img" aria-label="On"></span></div>
+          <div class="r" style="flex-direction:column;align-items:stretch;gap:4px;padding-top:10px">
+            <span>Keep routes for</span>
+            <div class="seg"><span class="on">Forever</span><span>1 year</span><span>90 days</span></div>
+          </div>
+          <div class="r" style="flex-direction:column;align-items:stretch;gap:6px;padding-block:12px">
+            <div style="display:flex;justify-content:space-between"><span>Space used</span><span class="num" style="font-weight:600">1.4 MB</span></div>
+            <div class="meter"><i></i></div>
+            <div class="hint">386 trips with a route, about 6,900 miles. A year of driving is about 3 MB.</div>
+          </div>
+        </div>
+        <button class="btn ghost" type="button">Delete all routes</button>
+        <div class="hint">Deleting a route keeps the trip and its miles. Routes stay on this phone and are included in Android's backup. Only map images are downloaded when you open a map.</div>
+        <h2 class="h2">Map</h2>
+        <div class="set">
+          <div class="r"><span>Map data</span><span class="sub">OpenStreetMap</span></div>
+          <div class="r"><span>Downloaded map images</span><span class="sub num">18 MB · Clear</span></div>
+        </div>
+      </div>
+      <div class="navbar"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></div>
+    </div></div>
+    <div class="cap">3. Settings: turn routes off, choose how long to keep them, see the space used.</div>
+  </div>
+</section>
+
+<section class="doc" aria-label="Proposal">
+  <div class="panel">
+    <h2>What the app does today</h2>
+    <p>Version 0.1 does not keep the route. While a trip runs, the phone reads GPS every 2 to 4 seconds, adds up the distance between points, and throws the points away. Each saved trip has only its date, miles and odometer. So the map needs a small change to keep those points, and trips recorded before that change will not have a map.</p>
+  </div>
+  <div class="panel">
+    <h2>What you would get</h2>
+    <ul>
+      <li>A route preview on every trip in the list, and a full map when you tap it.</li>
+      <li>Start and end pins named after your saved places (Home, Work) or the gas station, matching the gas station proposal.</li>
+      <li>Start and end times, minutes driven, average and top speed, odometer before and after.</li>
+      <li>"Log fill-up here" on trips that end at a gas station.</li>
+      <li>Delete one route (the miles stay), or all routes, from settings.</li>
+    </ul>
+  </div>
+
+  <div class="panel wide">
+    <h2>Which map to use</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Option</th><th>Cost and setup</th><th>Public repo</th><th>Look</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr class="pick"><td>MapLibre + OpenFreeMap <span class="rec">Pick</span></td><td>Free. No account, no API key, no usage limit.</td><td>Nothing secret to hide.</td><td>Modern, sharp street map. Can do a dark version.</td><td>OpenStreetMap data. Open-source library, actively maintained. Adds about 8 MB to the app.</td></tr>
+        <tr><td>osmdroid</td><td>Free. No key.</td><td>Nothing secret.</td><td>Older picture-tile look, blurry between zoom levels.</td><td>Simplest to add, but the project is in maintenance mode. OpenStreetMap's own tile servers ask apps to keep use light.</td></tr>
+        <tr><td>Google Maps SDK</td><td>Map views in Android apps cost nothing, but you need a Google Cloud account with a card on file and an API key.</td><td>The key ends up inside the APK and the build. Locking it to the app is weak here because the signing key is in the public repo.</td><td>The Google Maps look you know, plus satellite view.</td><td>The best choice only if satellite view matters to you.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="panel">
+    <h2>Storage</h2>
+    <p>The app keeps a point only when the car has moved, then trims straight stretches when the trip ends, so a typical mile needs about 10 to 20 points. That works out to roughly 200 bytes per mile, or about 3 MB for 15,000 miles a year. Routes go in their own file, separate from your logbook, so the main data stays small and fast. Android's backup allows 25 MB for the app, which leaves room for several years.</p>
+    <p class="muted">Map images you look at are cached separately (typically 10 to 30 MB, capped, and you can clear them).</p>
+  </div>
+  <div class="panel">
+    <h2>Battery and data</h2>
+    <p>No extra battery while driving. GPS is already running for every trip to measure the miles; keeping the points just saves what is already being read. Nothing runs between trips.</p>
+    <p>Opening a map downloads the map images for that area, a few hundred KB the first time and nothing after that for places you have already looked at. Downloads happen only when you open a map.</p>
+  </div>
+  <div class="panel">
+    <h2>Privacy</h2>
+    <p>Routes stay on the phone. When you open a map, the map server sees which area's images are requested, the same as any map app, but it never gets your route or your trips.</p>
+  </div>
+  <div class="panel">
+    <h2>Effort</h2>
+    <p>About two days of app work: keep and trim the points, the trip map screen, the list previews and the settings. It shares the trip end point with the gas station feature, so building both together saves a little time.</p>
+  </div>
+  <div class="panel wide">
+    <h2>Later, if you want them</h2>
+    <ul>
+      <li>Color the route by speed.</li>
+      <li>Export a trip as a GPX file to open in Google Earth or other map apps.</li>
+      <li>A monthly map showing all trips for one vehicle.</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+/* Street grid shared by the big map and the thumbnails (viewBox 300x260). */
+const VX=[22,72,122,172,222,272], HY=[30,80,130,180,230];
+const MAIN_Y=130, MAIN_X=172;
+const TRIPS=[
+  {id:'a', from:'Home', to:'Murphy USA', fuel:true, when:'Today', time:'7:42 to 8:05 AM', mins:23, miles:6.8, top:45, odo:[61905.2,61912.0],
+   fromAddr:'214 Oak St', toAddr:'1200 Main St',
+   pts:[[47,230],[72,230],[72,130],[222,130],[222,80],[248,80]]},
+  {id:'b', from:'Work', to:'Home', when:'Yesterday', time:'4:31 to 4:52 PM', mins:21, miles:8.3, top:52, odo:[61896.9,61905.2],
+   fromAddr:'Acme Plant, 40 Mill Rd', toAddr:'214 Oak St',
+   pts:[[197,30],[172,30],[172,180],[122,180],[122,230],[47,230]]},
+  {id:'c', from:'Home', to:'410 Elm St', unsaved:true, when:'Oct 20', time:'9:10 to 9:19 AM', mins:9, miles:3.1, top:38, odo:[61880.4,61883.5],
+   fromAddr:'214 Oak St', toAddr:'410 Elm St',
+   pts:[[47,230],[122,230],[122,180],[222,180],[222,205],[246,205]]},
+];
+const OLD={when:'Oct 18', miles:12.6};
+let sel='a';
+
+function pathD(pts){return pts.map((p,i)=>(i?'L':'M')+p[0]+' '+p[1]).join(' ')}
+function base(thin){
+  const w=thin?5:9, wm=thin?7:13;
+  let s=`<rect width="300" height="260" fill="var(--m-land)"/>`;
+  // blocks
+  for(let i=0;i<VX.length-1;i++)for(let j=0;j<HY.length-1;j++)
+    s+=`<rect x="${VX[i]+7}" y="${HY[j]+7}" width="${VX[i+1]-VX[i]-14}" height="${HY[j+1]-HY[j]-14}" rx="3" fill="var(--m-block)"/>`;
+  // park and creek
+  s+=`<rect x="79" y="37" width="36" height="36" rx="3" fill="var(--m-park)"/><rect x="229" y="187" width="36" height="36" rx="3" fill="var(--m-park)"/>`;
+  s+=`<path d="M0 108 C40 98 60 118 100 104 S170 92 196 104 S260 120 300 98" fill="none" stroke="var(--m-water)" stroke-width="${thin?5:8}"/>`;
+  // minor streets
+  let st='';
+  VX.forEach(x=>{if(x!==MAIN_X)st+=`M${x} 0V260`}); HY.forEach(y=>{if(y!==MAIN_Y)st+=`M0 ${y}H300`});
+  s+=`<path d="${st}" stroke="var(--m-edge)" stroke-width="${w+2}" fill="none"/><path d="${st}" stroke="var(--m-road)" stroke-width="${w}" fill="none"/>`;
+  // main roads
+  const mn=`M0 ${MAIN_Y}H300M${MAIN_X} 0V260`;
+  s+=`<path d="${mn}" stroke="var(--m-main-edge)" stroke-width="${wm+2}" fill="none"/><path d="${mn}" stroke="var(--m-main)" stroke-width="${wm}" fill="none"/>`;
+  if(!thin){
+    s+=`<text x="104" y="${MAIN_Y+3}" font-size="8.5" font-weight="600" fill="#6B5A2A" text-anchor="middle" font-family="var(--body)">Main St</text>`;
+    s+=`<text x="${MAIN_X+3}" y="250" font-size="8.5" font-weight="600" fill="#6B5A2A" text-anchor="start" font-family="var(--body)" transform="rotate(-90 ${MAIN_X+3} 250)">Hwy 64</text>`;
+    s+=`<text x="97" y="${HY[4]+3}" font-size="8" fill="var(--m-label)" text-anchor="middle" font-family="var(--body)">Oak St</text>`;
+    s+=`<text x="247" y="${HY[3]+3}" font-size="8" fill="var(--m-label)" text-anchor="middle" font-family="var(--body)">Elm St</text>`;
+    s+=`<text x="97" y="${HY[0]+3}" font-size="8" fill="var(--m-label)" text-anchor="middle" font-family="var(--body)">Mill Rd</text>`;
+    s+=`<text x="97" y="58" font-size="7.5" fill="#4F7A3A" text-anchor="middle" font-family="var(--body)">Lions Park</text>`;
+  }
+  return s;
+}
+function route(t,thin){
+  const d=pathD(t.pts);
+  return `<path d="${d}" fill="none" stroke="#fff" stroke-width="${thin?8:10}" stroke-linejoin="round" stroke-linecap="round"/>`+
+         `<path d="${d}" fill="none" stroke="var(--accent)" stroke-width="${thin?5:6}" stroke-linejoin="round" stroke-linecap="round"/>`;
+}
+function pins(t){
+  const a=t.pts[0], b=t.pts[t.pts.length-1];
+  const label=(p,txt,dx)=>{const w=txt.length*5.6+12, x=dx>0?p[0]+10:p[0]-10-w;return `<rect x="${x}" y="${p[1]-20}" width="${w}" height="15" rx="7.5" fill="#fff" stroke="var(--line)"/><text x="${x+w/2}" y="${p[1]-9.5}" font-size="9" font-weight="700" fill="var(--ink)" text-anchor="middle" font-family="var(--body)">${txt}</text>`};
+  return `<circle cx="${a[0]}" cy="${a[1]}" r="7" fill="var(--ok)" stroke="#fff" stroke-width="3"/>`+
+    `<circle cx="${b[0]}" cy="${b[1]}" r="8" fill="var(--ink)" stroke="#fff" stroke-width="3"/>`+
+    (t.fuel?`<path d="M${b[0]-2.5} ${b[1]-3.5}h4v7h-4z" fill="#fff"/>`:`<circle cx="${b[0]}" cy="${b[1]}" r="2.5" fill="#fff"/>`)+
+    label(a,t.from,a[0]<150?1:-1)+label(b,t.to,b[0]<200?1:-1);
+}
+function thumb(t){
+  const xs=t.pts.map(p=>p[0]), ys=t.pts.map(p=>p[1]);
+  const pad=22, x0=Math.min(...xs)-pad, y0=Math.min(...ys)-pad, w=Math.max(...xs)-Math.min(...xs)+pad*2, h=Math.max(...ys)-Math.min(...ys)+pad*2;
+  return `<svg viewBox="${x0} ${y0} ${w} ${h}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${base(true)}${route(t,true)}</svg>`;
+}
+const mi1=n=>n.toFixed(1), odo=n=>n.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1});
+
+function renderList(){
+  document.getElementById('tripList').innerHTML=TRIPS.map(t=>
+    `<button class="row" type="button" data-id="${t.id}" aria-pressed="${t.id===sel}"><div class="thumb">${thumb(t)}</div><div class="grow"><div class="t">${t.from} → ${t.to}</div><div class="s">${t.when} · ${t.mins} min</div></div><div class="v">+${mi1(t.miles)} mi</div></button>`).join('')+
+    `<div class="row"><div class="thumb none">No route</div><div class="grow"><div class="t">Trip</div><div class="s">${OLD.when} · recorded before maps</div></div><div class="v">+${mi1(OLD.miles)} mi</div></div>`;
+  document.querySelectorAll('#tripList button').forEach(b=>b.onclick=()=>{sel=b.dataset.id;renderList();renderDetail()});
+}
+function renderDetail(){
+  const t=TRIPS.find(x=>x.id===sel);
+  const avg=Math.round(t.miles/(t.mins/60));
+  document.getElementById('detail').innerHTML=`
+    <button class="back" type="button">‹ 2019 Silverado</button>
+    <div class="hdr"><h1>${t.from} → ${t.to}</h1><div class="sub">${t.when} · ${t.time}</div></div>
+    <div class="map" role="img" aria-label="Map of the route from ${t.from} to ${t.to}">
+      <svg viewBox="0 0 300 260" preserveAspectRatio="xMidYMid slice">${base(false)}${route(t,false)}${pins(t)}</svg>
+      <div class="mapctl" aria-hidden="true"><span>+</span><span>−</span><span style="font-size:13px">⤢</span></div>
+      <div class="scale" aria-hidden="true"><span>0.5 mi</span><i></i></div>
+      <div class="attr">© OpenStreetMap contributors</div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="lbl">Distance</div><div class="big">${mi1(t.miles)} mi</div></div>
+      <div class="tile"><div class="lbl">Time</div><div class="big">${t.mins} min</div></div>
+      <div class="tile"><div class="lbl">Avg / top</div><div class="big">${avg} / ${t.top}</div></div>
+    </div>
+    <div class="list">
+      <div class="row"><div class="grow"><div class="t">Started at ${t.from}</div><div class="s">${t.fromAddr}</div></div><span class="pill ok">Saved place</span></div>
+      <div class="row"><div class="grow"><div class="t">Ended at ${t.to}</div><div class="s">${t.toAddr}${t.fuel?' · gas station':''}</div>
+        ${t.fuel?'<button class="btn small" type="button" style="margin-top:6px">Log fill-up here</button>':''}
+        ${t.unsaved?'<button class="btn small ghost" type="button" style="margin-top:6px">Save this spot as a place</button>':''}</div>
+        ${t.unsaved?'':`<span class="pill${t.fuel?'':' ok'}">${t.fuel?'Gas station':'Saved place'}</span>`}</div>
+      <div class="row"><div class="grow"><div class="t">Odometer</div><div class="s">${odo(t.odo[0])} → ${odo(t.odo[1])} mi</div></div></div>
+    </div>
+    <button class="btn ghost" type="button">Delete route (keep the miles)</button>`;
+}
+renderList(); renderDetail();
+</script>
+
+</html>
