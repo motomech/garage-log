@@ -40,6 +40,7 @@ import com.motomech.garagelog.R
 import com.motomech.garagelog.data.Range
 import com.motomech.garagelog.data.Repo
 import com.motomech.garagelog.data.Routes
+import com.motomech.garagelog.data.Updates
 import com.motomech.garagelog.data.activeId
 import com.motomech.garagelog.data.vehicle
 import com.motomech.garagelog.data.vehicleForAddress
@@ -65,6 +66,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         Notifs.checkReminders(this)
         Thread { Routes.prune(Repo.current) }.start()
+        Updates.checkIfDue(this)
     }
 
     /** From the "Tap to track this trip" notification: the app is in front now, so the trip can start. */

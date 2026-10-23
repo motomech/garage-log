@@ -30,12 +30,14 @@ object Notifs {
     const val CH_TRIP = "trip"
     const val CH_REMIND = "reminders"
     const val CH_ALERT = "alerts"
+    const val CH_UPDATE = "updates"
     const val ID_TRIP = 1
     const val ID_TRIP_DONE = 2
     const val ID_START_FAILED = 3
     /** Intent action MainActivity handles by opening Log fill-up. */
     const val ACTION_LOG_FUEL = "com.motomech.garagelog.LOG_FUEL"
     const val ID_BACKUP_FAILED = 4
+    const val ID_UPDATE = 5
     private const val ID_DOC_BASE = 100_000
     private const val ID_REMINDER_BASE = 1000
 
@@ -50,6 +52,9 @@ object Notifs {
             },
             NotificationChannel(CH_ALERT, "Trips and tracking", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Trip finished, or tracking needs your attention"
+            },
+            NotificationChannel(CH_UPDATE, "App updates", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "A new version of Garage Log is ready to install"
             },
         ))
     }

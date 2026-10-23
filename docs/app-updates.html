@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Garage Log Updates</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: same look as the Garage Log simulator. Four phones in a row (banner, download, Android's install screen, settings card), the options and proposal below. */
+:root{
+  --stage:#E7E3D8; --stage-fg:#1C1B19; --stage-muted:#5E5B54; --desk:#FFFFFF; --desk-line:#D6D0C2; --desk-chip:#F1EEE6; --bezel:#1C1B19;
+  --bg:#F3F0E8; --card:#FFFFFF; --line:#DDD8CC; --ink:#1C1B19; --muted:#5E5B54; --chip:#ECE8DD;
+  --accent:#C2410C; --on-accent:#FFFFFF; --ok-bg:#D9EFEC; --ok:#0B5E57; --warn-bg:#FBE6DA; --warn:#9A3412;
+  --sys-bg:#FFFFFF; --sys-ink:#1F1F1F; --sys-muted:#5F6368; --sys-btn:#0B57D0; --scrim:rgba(0,0,0,.45);
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }}
+:root[data-theme="dark"]{ --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--stage);color:var(--stage-fg);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 40px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.intro,.phones,.doc{max-width:1160px;margin:0 auto}
+.intro h1{font-family:var(--display);font-size:36px;margin:0;line-height:1.05;text-wrap:balance}
+.intro p{margin:6px 0 0;color:var(--stage-muted);max-width:72ch}
+.phones{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;margin-top:22px}
+.cap{font-size:13px;color:var(--stage-muted);text-align:center;margin-top:8px;max-width:270px}
+.cap b{color:var(--stage-fg)}
+
+/* ---------- phone ---------- */
+.phone{width:270px;max-width:100%;height:560px;border-radius:36px;background:var(--bezel);padding:9px;box-shadow:0 18px 44px rgba(0,0,0,.22)}
+.screen{position:relative;width:100%;height:100%;border-radius:28px;overflow:hidden;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+.sbar{flex:none;height:24px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600}
+.content{flex:1;overflow:hidden;padding:0 12px 14px;display:flex;flex-direction:column;gap:9px}
+.navbar{flex:none;height:50px;background:var(--card);border-top:1px solid var(--line);display:flex}
+.navbar span{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--muted)}
+.navbar span.on{color:var(--accent);font-weight:700}
+.title{margin:2px 0 0;font-family:var(--display);font-size:27px;font-weight:700;line-height:1.05}
+.back{font-size:13px;font-weight:500}
+.sub{font-size:12px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 11px;display:flex;flex-direction:column;gap:6px}
+.card h3{margin:0;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.veh{display:flex;align-items:center;gap:9px}
+.ico{flex:none;width:34px;height:34px;border-radius:9px;background:var(--chip);display:flex;align-items:center;justify-content:center}
+.ico svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.veh .n{font-weight:700;font-size:14px} .veh .o{margin-left:auto;font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;background:var(--ok-bg);color:var(--ok);align-self:flex-start}
+
+/* update banner */
+.upd{background:var(--warn-bg);border:1px solid var(--line);border-radius:13px;padding:10px 11px;display:flex;flex-direction:column;gap:6px}
+.upd .h{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px;color:var(--warn)}
+.upd .h svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.upd .w{font-size:12px;color:var(--ink)}
+.upd ul{margin:0;padding-left:16px;font-size:12px}
+.btns{display:flex;gap:8px;margin-top:2px}
+.btn{flex:1;min-height:36px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 13px var(--body);display:flex;align-items:center;justify-content:center}
+.btn.p{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.bar{height:6px;border-radius:3px;background:var(--card);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:55%;background:var(--accent)}
+.num{font-variant-numeric:tabular-nums}
+
+/* android system install sheet */
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:flex-end}
+.sys{width:100%;background:var(--sys-bg);color:var(--sys-ink);border-radius:24px 24px 0 0;padding:20px 20px 18px;display:flex;flex-direction:column;gap:10px;font-family:Roboto,system-ui,sans-serif}
+.sys .app{display:flex;align-items:center;gap:10px;font-weight:500;font-size:15px}
+.sys .app .ico{background:var(--accent)} .sys .app .ico svg{stroke:#FFFFFF}
+.sys p{margin:0;font-size:14px;color:var(--sys-muted)}
+.sys .acts{display:flex;justify-content:flex-end;gap:18px;margin-top:6px}
+.sys .acts span{font-size:14px;font-weight:500;color:var(--sys-btn);padding:8px 4px}
+
+/* settings rows */
+.rowx{display:flex;align-items:center;gap:8px;min-height:34px;font-size:13px}
+.rowx .v{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums}
+.sw{flex:none;margin-left:auto;width:34px;height:20px;border-radius:999px;background:var(--accent);position:relative}
+.sw::after{content:"";position:absolute;right:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--on-accent)}
+.hint{font-size:11.5px;color:var(--muted)}
+.notif{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 11px;display:flex;gap:9px;align-items:flex-start;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.notif .ico{width:26px;height:26px;background:var(--accent)} .notif .ico svg{width:16px;height:16px;stroke:#FFFFFF}
+.notif .t{font-size:12.5px;font-weight:700} .notif .s{font-size:12px;color:var(--muted)}
+
+/* ---------- doc ---------- */
+.doc{margin-top:34px;background:var(--desk);border:1px solid var(--desk-line);border-radius:18px;padding:22px clamp(16px,3vw,32px);display:flex;flex-direction:column;gap:14px}
+.doc h2{font-family:var(--display);font-size:26px;margin:6px 0 0;line-height:1.1}
+.doc p,.doc li{max-width:78ch}
+.doc p{margin:0}
+.doc ul,.doc ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:700px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 10px;border-bottom:1px solid var(--desk-line)}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--stage-muted)}
+tr.rec td{background:var(--desk-chip)}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:2px 8px;background:var(--accent);color:var(--on-accent);margin-left:6px;vertical-align:1px}
+@media (prefers-reduced-motion: no-preference){ .bar i{transition:width .3s} }
+</style>
+</head>
+<body>
+
+<header class="intro">
+  <h1>Garage Log updates</h1>
+  <p>Proposal: the app checks GitHub for a newer version, tells you, downloads it when you tap Update, and hands it to Android's install screen. No more opening the download link in the browser. Sample screens below; nothing is built yet.</p>
+</header>
+
+<section class="phones" aria-label="Mock-up screens">
+
+  <!-- 1. Banner on Garage -->
+  <figure style="margin:0">
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:41</span><span>5G ▮▮▮</span></div>
+      <div class="content">
+        <div class="title">Garage</div>
+        <div class="upd" role="status">
+          <div class="h"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Update ready: 0.1.43</div>
+          <div class="w">What's new</div>
+          <ul><li>Vehicle type icons</li><li>Fix: trip map on small screens</li></ul>
+          <div class="btns"><span class="btn">Later</span><span class="btn p">Update</span></div>
+        </div>
+        <div class="card">
+          <div class="veh"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15v-3l2-5h14l2 5v3"/><path d="M3 15h18v3H3z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg></span><span class="n">2019 Silverado</span><span class="o">84,212 mi</span></div>
+          <span class="pill">● Connected · active</span>
+        </div>
+        <div class="card">
+          <div class="veh"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="16" r="3"/><circle cx="18" cy="16" r="3"/><path d="M6 16l4-6h5l3 6M10 10l-1-3h-2"/></svg></span><span class="n">Road Glide</span><span class="o">21,904 mi</span></div>
+        </div>
+      </div>
+      <nav class="navbar" aria-hidden="true"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></nav>
+    </div></div>
+    <figcaption class="cap"><b>1. A new version is out.</b> A card at the top of Garage, plus one notification. "Later" hides it until the next version.</figcaption>
+  </figure>
+
+  <!-- 2. Downloading -->
+  <figure style="margin:0">
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:41</span><span>5G ▮▮▮</span></div>
+      <div class="content">
+        <div class="title">Garage</div>
+        <div class="upd" role="status">
+          <div class="h"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Downloading 0.1.43</div>
+          <div class="bar"><i></i></div>
+          <div class="w num">13 of 24 MB</div>
+          <div class="btns"><span class="btn">Cancel</span></div>
+        </div>
+        <div class="card">
+          <div class="veh"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15v-3l2-5h14l2 5v3"/><path d="M3 15h18v3H3z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg></span><span class="n">2019 Silverado</span><span class="o">84,212 mi</span></div>
+        </div>
+        <div class="upd" style="background:var(--chip)">
+          <div class="h" style="color:var(--ink)">During a trip</div>
+          <div class="w">"Update after this trip": installing closes the app, which would stop trip tracking. The card comes back when the trip ends.</div>
+        </div>
+      </div>
+      <nav class="navbar" aria-hidden="true"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></nav>
+    </div></div>
+    <figcaption class="cap"><b>2. Download in the app.</b> About 25 MB. While a trip is running, the Update button waits for the trip to end.</figcaption>
+  </figure>
+
+  <!-- 3. Android install sheet -->
+  <figure style="margin:0">
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:42</span><span>5G ▮▮▮</span></div>
+      <div class="content">
+        <div class="title">Garage</div>
+        <div class="card"><div class="veh"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15v-3l2-5h14l2 5v3"/><path d="M3 15h18v3H3z"/></svg></span><span class="n">2019 Silverado</span></div></div>
+      </div>
+      <div class="scrim">
+        <div class="sys" role="dialog" aria-label="Android install screen">
+          <div class="app"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15v-3l2-5h14l2 5v3"/><path d="M3 15h18v3H3z"/></svg></span>Garage Log</div>
+          <p>Do you want to update this app?</p>
+          <div class="acts"><span>Cancel</span><span>Update</span></div>
+        </div>
+      </div>
+    </div></div>
+    <figcaption class="cap"><b>3. Android's own screen.</b> One tap on Update. The very first time, Android also asks you to allow Garage Log to install apps (one switch). Data is kept.</figcaption>
+  </figure>
+
+  <!-- 4. Settings card -->
+  <figure style="margin:0">
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:45</span><span>5G ▮▮▮</span></div>
+      <div class="content">
+        <div class="back">‹ Garage</div>
+        <div class="title">Import and export</div>
+        <div class="card">
+          <h3>App updates</h3>
+          <div class="rowx">Installed<span class="v">0.1.43</span></div>
+          <div class="rowx">Check every day<span class="sw" aria-hidden="true"></span></div>
+          <div class="hint">Up to date. Checked today 9:44 AM.</div>
+          <div class="btns"><span class="btn">Check now</span></div>
+        </div>
+        <div class="card"><h3>Automatic backup</h3><div class="hint">Google Drive · last saved 3:02 AM</div></div>
+        <div class="notif" style="margin-top:auto">
+          <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></span>
+          <div><div class="t">Garage Log 0.1.44 is ready</div><div class="s">Tap to update. Your data stays.</div></div>
+        </div>
+      </div>
+      <nav class="navbar" aria-hidden="true"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></nav>
+    </div></div>
+    <figcaption class="cap"><b>4. Settings and the notification.</b> On the Import and export screen, next to backup. The notification comes from the daily check.</figcaption>
+  </figure>
+</section>
+
+<article class="doc">
+  <h2>The options</h2>
+  <p>Every way of installing an app from outside the Play Store ends at Android's "Do you want to update this app?" screen. Android requires that tap; no app can skip it the first time. The choice is about who notices the new version and fetches it.</p>
+  <div class="tbl">
+  <table>
+    <thead><tr><th>Option</th><th>How it feels on the phone</th><th>Setup and cost</th><th>Catches</th></tr></thead>
+    <tbody>
+      <tr class="rec"><td><b>In-app update check</b><span class="tag">Recommended</span></td><td>Card in Garage and a notification. Tap Update, then Android's Update. Two taps, no browser.</td><td>About half a day of app work. Free. Uses the GitHub releases already published on every merge.</td><td>Adds the "install apps" permission. The first update asks once to allow Garage Log as an install source.</td></tr>
+      <tr><td><b>Obtainium</b> (free app)</td><td>A separate app watches the GitHub repo, notifies, downloads, then Android's Update.</td><td>Nothing to build. Install Obtainium, add github.com/motomech/garage-log. Works today.</td><td>One more app to keep. Its notifications don't know about trips.</td></tr>
+      <tr><td><b>Play Store, internal testing</b></td><td>Updates install on their own overnight, like any store app.</td><td>$25 Google developer account, ID check, a new private signing key (the one in the repo is public), Play's background location forms.</td><td>Switching means uninstalling once (different key), then restoring from the Drive backup. The most paperwork.</td></tr>
+      <tr><td><b>Firebase App Distribution</b></td><td>Email or tester-app notice, download, then Android's Update.</td><td>Firebase project and Google sign-in, upload step in the build.</td><td>Not better than the in-app check, with more accounts.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>How the in-app check works</h2>
+  <ul>
+    <li><b>Where it looks:</b> GitHub's latest release for motomech/garage-log (the same one the download link uses). The repo is public, so no account or key. Each release is tagged 0.1.<i>N</i>, and <i>N</i> is the app's version code, so "newer" is a plain number compare.</li>
+    <li><b>When:</b> when the app opens (at most every 6 hours) and once a day in the background with the reminder check. One small web request.</li>
+    <li><b>What's new:</b> the release notes list the merged pull requests, so the card can say what changed. That is a one-line change to the build.</li>
+    <li><b>Install:</b> the app downloads the APK into its own storage, checks it is signed with the same key, then opens Android's install screen. Data is kept, as with the browser download today.</li>
+    <li><b>Trips:</b> installing closes the app, so the Update button waits while a trip is in progress.</li>
+    <li><b>Turn off:</b> a "Check every day" switch. "Check now" works either way.</li>
+    <li><b>Maybe zero taps later:</b> on Android 12 and newer, once Garage Log has installed its own update, Android may let later updates go through without asking. We would try it on your phone; if Android still asks, it stays one tap.</li>
+  </ul>
+
+  <h2>Until it's built</h2>
+  <p>Obtainium works now with no changes: install it from github.com/ImranR98/Obtainium, tap Add App, paste github.com/motomech/garage-log. After the in-app check ships, Obtainium can be removed.</p>
+</article>
+</body>
+</html>

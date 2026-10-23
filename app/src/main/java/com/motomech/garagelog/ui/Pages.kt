@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,12 +40,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.motomech.garagelog.R
 import com.motomech.garagelog.data.AppData
 import com.motomech.garagelog.data.Backup
 import com.motomech.garagelog.data.DocFiles
 import com.motomech.garagelog.data.ExportChoice
 import com.motomech.garagelog.data.Repo
+import com.motomech.garagelog.data.Updates
 import com.motomech.garagelog.data.addVehicle
 import com.motomech.garagelog.data.deleteVehicle
 import com.motomech.garagelog.data.replaceVehicle
@@ -244,6 +247,7 @@ fun DataScreen(d: AppData) {
 
     TextButton(onClick = { nav.open(null) }) { Text("‹ Garage", color = G.ink) }
     ScreenTitle("Import and export")
+    AppUpdatesCard(d)
     BackupCard()
     GCard {
         H2("Export to CSV")
@@ -356,4 +360,99 @@ private fun sizeText(b: Long): String = when {
     b >= 1_000_000 -> String.format(Locale.US, "%.1f MB", b / 1_000_000.0)
     b >= 1_000 -> "${b / 1_000} KB"
     else -> "$b bytes"
+}
+
+/* ---------------- App updates ---------------- */
+
+/** On Garage while a newer version is out and the user hasn't tapped Later. */
+@Composable
+fun UpdateBanner(d: AppData) {
+    val s by Updates.state.collectAsStateWithLifecycle()
+    val r = s.banner ?: return
+    val ctx = LocalContext.current
+    GCard(bg = G.warnBg) {
+        Text("Update ready: ${r.name}", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = G.warn)
+        if (r.notes.isNotEmpty()) {
+            Sub("What's new", color = G.ink)
+            r.notes.take(4).forEach { Sub("• $it", color = G.ink) }
+        }
+        Gap(4.dp)
+        UpdateActions(d, s, onLater = { Updates.dismiss(ctx) })
+    }
+}
+
+/** Update button and everything around it: trip in progress, install permission, download, Android's screen. */
+@Composable
+private fun UpdateActions(d: AppData, s: Updates.State, onLater: (() -> Unit)?) {
+    val ctx = LocalContext.current
+    val canInstall = remember(LocalResumeTick.current) { Updates.canInstall(ctx) }
+    s.error?.let { Note("Update didn't work: $it", Level.BAD) }
+    val prog = s.progress
+    when {
+        prog != null -> {
+            val (done, total) = prog
+            LinearProgressIndicator(
+                progress = { if (total > 0) (done.toFloat() / total).coerceIn(0f, 1f) else 0f },
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), color = G.accent, trackColor = G.card,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Sub("Downloading · ${sizeText(done)} of ${sizeText(total)}", Modifier.weight(1f), color = G.ink)
+                TextButton(onClick = { Updates.cancel() }) { Text("Cancel", color = G.accent) }
+            }
+        }
+        s.installing -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Sub("Finishing on Android's install screen…", Modifier.weight(1f), color = G.ink)
+            TextButton(onClick = { Updates.reset() }) { Text("Start over", color = G.accent) }
+        }
+        d.trip != null || d.pumpWait != null -> Note(
+            "Update after this trip. Installing closes the app, which would stop trip tracking.", null)
+        !canInstall -> {
+            Sub("First, let Garage Log install its updates. Android asks only once: switch on \"Allow from this source\", then come back.", color = G.ink)
+            Button(onClick = { runCatching { ctx.startActivity(Updates.installPermissionIntent(ctx)) } },
+                modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = G.accent)) { Text("Allow updates") }
+        }
+        else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (onLater != null) GhostButton("Later", Modifier.weight(1f), onLater)
+            Button(onClick = { val app = ctx.applicationContext; Thread { Updates.downloadAndInstall(app) }.start() },
+                modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = G.accent)) { Text("Update") }
+        }
+    }
+}
+
+/** On Import and export: installed version, daily check switch, Check now. */
+@Composable
+fun AppUpdatesCard(d: AppData) {
+    val nav = LocalNav.current
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val s by Updates.state.collectAsStateWithLifecycle()
+    GCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("App updates", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = G.ink, modifier = Modifier.weight(1f))
+            Switch(s.auto, { Updates.setAuto(ctx, it) }, colors = SwitchDefaults.colors(checkedTrackColor = G.accent))
+        }
+        Sub("Installed: ${s.installedName.ifEmpty { "unknown" }}. " +
+            if (s.auto) "Checks for a new version every day." else "Daily check is off; tap Check now.")
+        val r = s.available
+        when {
+            s.checking -> Sub("Checking…")
+            r != null -> {
+                Note("Version ${r.name} is ready.", Level.WARN)
+                UpdateActions(d, s, onLater = null)
+            }
+            s.error != null -> Note("Couldn't check: ${s.error}", Level.BAD)
+            s.lastCheck > 0 -> Sub("Up to date. Last checked: ${whenText(s.lastCheck)}", color = G.ok)
+        }
+        if (r == null) GhostButton("Check now", Modifier.fillMaxWidth()) {
+            scope.launch {
+                val res = withContext(Dispatchers.IO) { Updates.check(ctx) }
+                val latest = res.getOrNull()
+                nav.toast(when {
+                    res.isFailure -> "Couldn't reach GitHub. Check the connection and try again."
+                    latest != null && latest.code > Updates.state.value.installed -> "Version ${latest.name} is ready"
+                    else -> "You have the newest version"
+                })
+            }
+        }
+    }
 }
