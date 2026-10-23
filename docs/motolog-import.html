@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>MotoLog Import</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: same look as the Garage Log simulator. Four phones (pick files, preview, fill-up check, done), then the column mapping and open questions. */
+:root{
+  --stage:#E7E3D8; --stage-fg:#1C1B19; --stage-muted:#5E5B54; --desk:#FFFFFF; --desk-line:#D6D0C2; --desk-chip:#F1EEE6; --bezel:#1C1B19;
+  --bg:#F3F0E8; --card:#FFFFFF; --line:#DDD8CC; --ink:#1C1B19; --muted:#5E5B54; --chip:#ECE8DD;
+  --accent:#C2410C; --on-accent:#FFFFFF; --ok-bg:#D9EFEC; --ok:#0B5E57; --warn-bg:#FBE6DA; --warn:#9A3412;
+  --sys-bg:#FFFFFF; --sys-ink:#1F1F1F; --sys-muted:#5F6368; --sys-btn:#0B57D0; --scrim:rgba(0,0,0,.45);
+  --display:'Barlow Condensed','Arial Narrow',sans-serif; --body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }}
+:root[data-theme="dark"]{ --stage:#17161A; --stage-fg:#ECE8DD; --stage-muted:#A8A396; --desk:#222126; --desk-line:#38363C; --desk-chip:#2C2B31; --bezel:#050506; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--stage);color:var(--stage-fg);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 40px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.intro,.phones,.doc{max-width:1160px;margin:0 auto}
+.intro h1{font-family:var(--display);font-size:36px;margin:0;line-height:1.05;text-wrap:balance}
+.intro p{margin:6px 0 0;color:var(--stage-muted);max-width:72ch}
+.phones{display:flex;flex-wrap:wrap;gap:22px;justify-content:center;margin-top:22px}
+.cap{font-size:13px;color:var(--stage-muted);text-align:center;margin-top:8px;max-width:270px}
+.cap b{color:var(--stage-fg)}
+
+/* ---------- phone ---------- */
+.phone{width:270px;max-width:100%;height:560px;border-radius:36px;background:var(--bezel);padding:9px;box-shadow:0 18px 44px rgba(0,0,0,.22)}
+.screen{position:relative;width:100%;height:100%;border-radius:28px;overflow:hidden;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+.sbar{flex:none;height:24px;padding:0 18px;display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600}
+.content{flex:1;overflow:hidden;padding:0 12px 14px;display:flex;flex-direction:column;gap:9px}
+.navbar{flex:none;height:50px;background:var(--card);border-top:1px solid var(--line);display:flex}
+.navbar span{flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--muted)}
+.navbar span.on{color:var(--accent);font-weight:700}
+.title{margin:2px 0 0;font-family:var(--display);font-size:27px;font-weight:700;line-height:1.05}
+.back{font-size:13px;font-weight:500}
+.sub{font-size:12px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 11px;display:flex;flex-direction:column;gap:6px}
+.card h3{margin:0;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.veh{display:flex;align-items:center;gap:9px}
+.ico{flex:none;width:34px;height:34px;border-radius:9px;background:var(--chip);display:flex;align-items:center;justify-content:center}
+.ico svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.veh .n{font-weight:700;font-size:14px} .veh .o{margin-left:auto;font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;border-radius:999px;padding:2px 8px;background:var(--ok-bg);color:var(--ok);align-self:flex-start}
+
+/* update banner */
+.upd{background:var(--warn-bg);border:1px solid var(--line);border-radius:13px;padding:10px 11px;display:flex;flex-direction:column;gap:6px}
+.upd .h{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14px;color:var(--warn)}
+.upd .h svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.upd .w{font-size:12px;color:var(--ink)}
+.upd ul{margin:0;padding-left:16px;font-size:12px}
+.btns{display:flex;gap:8px;margin-top:2px}
+.btn{flex:1;min-height:36px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:600 13px var(--body);display:flex;align-items:center;justify-content:center}
+.btn.p{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.bar{height:6px;border-radius:3px;background:var(--card);overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:55%;background:var(--accent)}
+.num{font-variant-numeric:tabular-nums}
+
+/* android system install sheet */
+.scrim{position:absolute;inset:0;background:var(--scrim);display:flex;align-items:flex-end}
+.sys{width:100%;background:var(--sys-bg);color:var(--sys-ink);border-radius:24px 24px 0 0;padding:20px 20px 18px;display:flex;flex-direction:column;gap:10px;font-family:Roboto,system-ui,sans-serif}
+.sys .app{display:flex;align-items:center;gap:10px;font-weight:500;font-size:15px}
+.sys .app .ico{background:var(--accent)} .sys .app .ico svg{stroke:#FFFFFF}
+.sys p{margin:0;font-size:14px;color:var(--sys-muted)}
+.sys .acts{display:flex;justify-content:flex-end;gap:18px;margin-top:6px}
+.sys .acts span{font-size:14px;font-weight:500;color:var(--sys-btn);padding:8px 4px}
+
+/* settings rows */
+.rowx{display:flex;align-items:center;gap:8px;min-height:34px;font-size:13px}
+.rowx .v{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums}
+.sw{flex:none;margin-left:auto;width:34px;height:20px;border-radius:999px;background:var(--accent);position:relative}
+.sw::after{content:"";position:absolute;right:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--on-accent)}
+.hint{font-size:11.5px;color:var(--muted)}
+.notif{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 11px;display:flex;gap:9px;align-items:flex-start;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.notif .ico{width:26px;height:26px;background:var(--accent)} .notif .ico svg{width:16px;height:16px;stroke:#FFFFFF}
+.notif .t{font-size:12.5px;font-weight:700} .notif .s{font-size:12px;color:var(--muted)}
+
+/* ---------- doc ---------- */
+.doc{margin-top:34px;background:var(--desk);border:1px solid var(--desk-line);border-radius:18px;padding:22px clamp(16px,3vw,32px);display:flex;flex-direction:column;gap:14px}
+.doc h2{font-family:var(--display);font-size:26px;margin:6px 0 0;line-height:1.1}
+.doc p,.doc li{max-width:78ch}
+.doc p{margin:0}
+.doc ul,.doc ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:700px;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:9px 10px;border-bottom:1px solid var(--desk-line)}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--stage-muted)}
+tr.rec td{background:var(--desk-chip)}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:2px 8px;background:var(--accent);color:var(--on-accent);margin-left:6px;vertical-align:1px}
+.ck{flex:none;width:16px;height:16px;border-radius:4px;background:var(--accent);display:inline-flex;align-items:center;justify-content:center}
+.ck svg{width:12px;height:12px;stroke:var(--on-accent);fill:none;stroke-width:3}
+.ck.off{background:var(--card);border:1.5px solid var(--muted)}
+.file{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:6px 8px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}
+.file b{font-weight:600}
+.file .k{margin-left:auto;font-size:11px;color:var(--ok);font-weight:700}
+.seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;font-size:12px;font-weight:600}
+.seg span{flex:1;text-align:center;padding:6px 4px}
+.seg span.on{background:var(--accent);color:var(--on-accent)}
+.fr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.fr:last-child{border-bottom:0}
+.fr .d{font-weight:600} .fr .r{text-align:right;font-variant-numeric:tabular-nums}
+.fr .m{grid-column:2 / 4;color:var(--muted);font-size:11.5px}
+.flag{display:inline-block;font-size:10.5px;font-weight:700;border-radius:999px;padding:1px 7px;background:var(--warn-bg);color:var(--warn)}
+.big{font-family:var(--display);font-size:22px;font-weight:700;line-height:1}
+.q{background:var(--desk-chip);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.q b{font-size:15px}
+</style>
+</head>
+<body>
+
+<header class="intro">
+  <h1>Bringing over your MotoLog data</h1>
+  <p>Built from your real export of the 67 Barracuda: 182 trips and 8 fill-ups. The app would read MotoLog's Excel reports directly, so there's no converting on the computer. Sample screens below; nothing is built yet.</p>
+</header>
+
+<section class="phones" aria-label="Mock-up screens">
+
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:41</span><span>●●● 82%</span></div>
+      <div class="content">
+        <span class="back">‹ Garage</span>
+        <p class="title">Import and export</p>
+        <div class="card">
+          <h3>Import from MotoLog</h3>
+          <span class="hint">In MotoLog, export each report as Excel (one file per report per vehicle), save them to the phone or Drive, then pick them here. You can pick several at once.</span>
+          <div class="file"><b>fuel-report.xlsx</b><span class="k">Fuel</span></div>
+          <div class="file"><b>trip-report.xlsx</b><span class="k">Trips</span></div>
+          <div class="btns"><span class="btn">Add files</span><span class="btn p">Next</span></div>
+        </div>
+        <div class="card">
+          <h3>Export to CSV</h3>
+          <span class="sub">Vehicle, what to include, Export CSV</span>
+        </div>
+      </div>
+      <div class="navbar"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></div>
+    </div></div>
+    <p class="cap"><b>1. Pick the files.</b> The app recognizes each report from its title row (Fuel, Trips) and checks it's a MotoLog file.</p>
+  </div>
+
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:41</span><span>●●● 82%</span></div>
+      <div class="content">
+        <span class="back">‹ Back</span>
+        <p class="title">Check before import</p>
+        <div class="card">
+          <h3>Vehicle in these files</h3>
+          <div class="veh"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15v-2l3-1 3-3h6l2 3 4 1v2"/><path d="M3 15h18v2H3z"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/></svg></span><span><span class="n">67 Barracuda</span><br><span class="sub">1967 Plymouth · 66E PBQ</span></span></div>
+          <div class="seg"><span class="on">Add as new</span><span>Use existing</span></div>
+          <span class="hint">Brings over make, model, year, plate, VIN and engine (5,654 cc). Type: Convertible.</span>
+        </div>
+        <div class="card">
+          <h3>What will be added</h3>
+          <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Trips<span class="v">182 · 1,818 mi</span></div>
+          <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Fill-ups<span class="v">8 · 72.9 gal</span></div>
+          <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Business / Private tags<span class="v">68 / 114</span></div>
+          <span class="hint">Jan 14, 2025 to Oct 18, 2026. Odometer will be set to 27,016 mi. Anything already in Garage Log is skipped.</span>
+        </div>
+        <div class="btns"><span class="btn">Review fill-ups</span><span class="btn p">Import</span></div>
+      </div>
+    </div></div>
+    <p class="cap"><b>2. Preview.</b> Match the MotoLog vehicle to one you already set up, or add it. Untick anything you don't want.</p>
+  </div>
+
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:41</span><span>●●● 82%</span></div>
+      <div class="content">
+        <span class="back">‹ Back</span>
+        <p class="title">Fill-ups</p>
+        <span class="sub">MotoLog stores litres; shown here in gallons. Odometer comes from the trip log at the time of each fill-up.</span>
+        <div class="card" style="gap:0">
+          <div class="fr"><span class="d">Mar 15 '25</span><span>Quick Fuel</span><span class="r">7.24 gal</span><span class="m">25,387 mi · $3.999 · partial · $28.97</span></div>
+          <div class="fr"><span class="d">Mar 29 '25</span><span>Quick Fuel</span><span class="r">11.91 gal</span><span class="m">25,571 mi · $2.990 · full · $35.60</span></div>
+          <div class="fr"><span class="d">Apr 12 '25</span><span>Quick Fuel</span><span class="r">12.28 gal</span><span class="m">25,694 mi · $3.159 · full · $38.79</span></div>
+          <div class="fr"><span class="d">Aug 3 '25</span><span>Sunoco</span><span class="r">10.39 gal</span><span class="m">26,030 mi · $2.849 · partial · $29.59</span></div>
+          <div class="fr"><span class="d">Jun 27 '26</span><span>Sunoco</span><span class="r">12.28 gal</span><span class="m">26,862 mi · $3.749 · full · $46.03<br><span class="flag">Missed fill-up before</span> no MPG for this one</span></div>
+          <div class="fr"><span class="d">Aug 5 '26</span><span>Shell</span><span class="r">7.26 gal</span><span class="m">26,912 mi · $4.829 · full · $35.07</span></div>
+        </div>
+        <span class="hint">+ 2 more. Tap one to fix it before importing.</span>
+      </div>
+    </div></div>
+    <p class="cap"><b>3. Fill-up check (optional).</b> MotoLog's "Full after skipped" becomes a full tank marked "missed fill-up before", so a gap doesn't produce a fake MPG.</p>
+  </div>
+
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="sbar"><span>9:41</span><span>●●● 82%</span></div>
+      <div class="content">
+        <span class="back">‹ Import and export</span>
+        <p class="title">Imported</p>
+        <div class="card">
+          <div class="veh"><span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15v-2l3-1 3-3h6l2 3 4 1v2"/><path d="M3 15h18v2H3z"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/></svg></span><span class="n">67 Barracuda</span><span class="o">27,016 mi</span></div>
+          <span class="pill">Added</span>
+        </div>
+        <div class="card">
+          <div class="rowx">Trips added<span class="v">182</span></div>
+          <div class="rowx">Fill-ups added<span class="v">8</span></div>
+          <div class="rowx">Skipped (already there)<span class="v">0</span></div>
+          <div class="rowx">Fuel cost<span class="v">$247.60</span></div>
+        </div>
+        <div class="card">
+          <h3>Next</h3>
+          <span class="sub">Link the Barracuda to its Bluetooth radio so new trips log themselves. Importing the same files again adds nothing twice.</span>
+        </div>
+        <div class="btns"><span class="btn p">Open 67 Barracuda</span></div>
+      </div>
+    </div></div>
+    <p class="cap"><b>4. Done.</b> Imported trips show in the trip list with their MotoLog start and end addresses. They have no route map.</p>
+  </div>
+
+</section>
+
+<article class="doc">
+  <h2>What's in the two files</h2>
+  <p>Each file covers one vehicle. The top row holds the vehicle (name, make, model, year, displacement, plate, VIN), then the report name, the date range, the column headings and one row per entry, with a Total row at the bottom.</p>
+
+  <h2>How each column lands in Garage Log</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>MotoLog</th><th>Garage Log</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr class="rec"><td colspan="3"><b>Vehicle header</b> (both files)</td></tr>
+      <tr><td>Name, Manufacturer, Model, Year</td><td>Vehicle name, make, model, year</td><td>"67" becomes 1967. Matched to an existing vehicle by VIN, then plate, then name; otherwise you pick.</td></tr>
+      <tr><td>Displacement [cc], License plate, VIN</td><td>Engine, plate, VIN</td><td>Stored as "5,654 cc".</td></tr>
+      <tr class="rec"><td colspan="3"><b>Fuel report</b></td></tr>
+      <tr><td>Date</td><td>Fill-up date</td><td>Time of day is kept for matching to trips.</td></tr>
+      <tr><td>Quantity [L]</td><td>Gallons</td><td>Divided by 3.785. MotoLog stores litres even when it shows gallons.</td></tr>
+      <tr><td>Fuel price [$]</td><td>Price per gallon</td><td>Already per gallon (7.24 gal × $3.999 = $28.97 matches the Total cost column).</td></tr>
+      <tr><td>Type: Full / Partial / Full after skipped</td><td>Full tank on/off, plus "missed fill-up before"</td><td>The last one is new in Garage Log: MPG is not worked out across a missed fill-up.</td></tr>
+      <tr><td>Gas station</td><td>Station name and address</td><td>"Sunoco – US, FL, Pinellas Park, …" is split at the dash into name and address.</td></tr>
+      <tr><td>Distance [mi]</td><td>Used for the odometer only if there's no trip log</td><td>It's miles since the previous fill-up and isn't reliable (the June 2026 row says 26,862, which is the odometer).</td></tr>
+      <tr><td>Total cost, Fuel consumption, Fuel economy, Fuel type, Signature</td><td>Not stored</td><td>Garage Log works these out itself, or they're empty.</td></tr>
+      <tr class="rec"><td colspan="3"><b>Trip report</b></td></tr>
+      <tr><td>Date and time start / end</td><td>Trip date, start and end time</td><td>Used to skip duplicates on a second import.</td></tr>
+      <tr><td>Start, End</td><td>Odometer at the end of the trip</td><td>The highest End becomes the vehicle's odometer (27,016 mi).</td></tr>
+      <tr><td>Distance</td><td>Trip miles</td><td></td></tr>
+      <tr><td>Route (numbered stops)</td><td>From and to labels</td><td>First and last stop. Middle stops go in the trip's note. No GPS track, so no map.</td></tr>
+      <tr><td>Tags (Business / Private)</td><td>New: trip tag</td><td>See question 1.</td></tr>
+      <tr><td>Rate, Distance × Rate, Fixed amount</td><td>Not stored for now</td><td>MotoLog's mileage rate ($0.50/mi on business trips). See question 1.</td></tr>
+      <tr><td>Fuel expenses</td><td>Not stored</td><td>MotoLog's per-trip fuel estimate. The real fill-ups already carry the cost, so keeping it would count fuel twice.</td></tr>
+      <tr><td>Title, Note</td><td>Trip note</td><td>Most trips say "Trip" or nothing.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Questions for you</h2>
+  <div class="q"><b>1. Do you use the Business / Private tags?</b><span>68 of your 182 trips are tagged Business (642 mi). My suggestion: keep the tag on each trip and show business miles per year on the Costs tab, which is what you'd need for taxes or reimbursement. Rates and reimbursement amounts can wait. If you never use it, I'll drop the tags.</span></div>
+  <div class="q"><b>2. Do you have service, expense or parts records in MotoLog?</b><span>These two files have none. If MotoLog has Service, Expenses or Parts reports, export one as Excel and send it, so the import can read those too.</span></div>
+  <div class="q"><b>3. Your other vehicles?</b><span>Each file is one vehicle. Export the same reports for each vehicle; you can pick all of them in one go.</span></div>
+</article>
+
+</body>
+</html>

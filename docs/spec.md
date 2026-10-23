@@ -97,9 +97,19 @@ Ron asked whether new versions can reach the phone without re-downloading the AP
 - **How it is built:** `data/Updates.kt`. Checks `api.github.com/repos/motomech/garage-log/releases/latest` on app open (if the last check is over 6 hours old) and in a daily WorkManager job with network. The tag's last number is compared with the installed version code. The APK downloads to the app's cache, is checked for same package, newer version and same signing certificate, then goes to Android's PackageInstaller (on Android 12+ with "user action not required", so Android may skip its screen once Garage Log installed the previous update itself). The daily job posts one notification per new version on a new "App updates" channel. "Later" hides the Garage card until a newer version. The Update button is replaced by a note while a trip or pump stop is running. If Android hasn't allowed Garage Log to install apps yet, the card shows an "Allow updates" button that opens that setting. Release notes come from GitHub's generated notes (merged pull request titles), shown as "What's new".
 - **First time:** the version that adds this has to be downloaded the old way once. After that, updates come from the app.
 
+## MotoLog import (proposed 2026-10-23, under discussion)
+
+Ron exported MotoLog's Fuel and Trip reports for the 67 Barracuda as Excel (.xlsx); Excel was picked over PDF because every value keeps its own column. Mock-up and full column mapping: `docs/motolog-import.html` (working copy https://claude.ai/artifact/Usmje7a6xXXeGbxe7nvzLB). Nothing is built yet.
+
+- **File layout:** one vehicle per file. Row 1 holds the vehicle (name, manufacturer, model, year, displacement cc, plate, VIN), then the report name (Fuel / Trips), the date range, column headings, one row per entry and a Total row.
+- **Proposed flow:** Import and export, "Import from MotoLog", pick one or more .xlsx files (read directly in the app, no converting), preview per vehicle (add as new or match an existing one by VIN, plate, then name; tick what to bring), optional fill-up check, import, summary. Re-importing skips anything already there (trips by start time, fill-ups by date and amount).
+- **Fuel:** Quantity is in litres (divide by 3.785 for gallons); Fuel price is already per gallon. Type Full / Partial / Full after skipped maps to the full-tank flag plus a new "missed fill-up before" flag so MPG isn't worked out across a gap. Gas station text splits at the dash into name and address. Odometer comes from the trip log at the fill-up time; MotoLog's Distance column (miles since last fill) is unreliable (one row holds the odometer instead) and is a fallback only.
+- **Trips:** start and end time, End odometer, Distance, first and last Route stop as from/to labels (middle stops into a note). No GPS track, so no route map. Highest End odometer becomes the vehicle's odometer. MotoLog's per-trip "Fuel expenses" estimate is not imported (fill-ups already carry the cost). Rate / Distance x Rate / Fixed amount not stored for now.
+- **Open for Ron:** (1) keep Business / Private trip tags (68 of 182 trips are Business) with business miles per year on Costs, or drop them; (2) does MotoLog hold service, expense or parts records, and can he export those reports too; (3) export the same reports for his other vehicles.
+
 ## Open questions
 
-- MotoLog's CSV export format has not been reviewed yet (needed for import mapping).
+- MotoLog import: see the MotoLog import section (Business/Private tags, service and expense reports).
 - Active-vehicle indicator and manual override on the Fuel, Service, and Costs screens are not in the mock-ups yet.
 
 - Background trip tracking reliability on Ron's phone (battery optimization). The app has a setup card that asks for each needed permission, including "Battery: unrestricted". Test on real drives.

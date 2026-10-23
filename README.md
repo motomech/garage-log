@@ -27,6 +27,7 @@ GitHub Actions (`.github/workflows/android.yml`) builds the APK on every push an
 - `docs/index.html`: the clickable simulator (a single web page, sample data only).
 - `docs/route-map.html`: mock-up of the trip route map proposal (sample data only).
 - `docs/app-updates.html`: mock-up of the in-app update proposal (sample data only).
+- `docs/motolog-import.html`: mock-up and column mapping for importing MotoLog's Excel exports.
 
 ## Mock-ups
 
