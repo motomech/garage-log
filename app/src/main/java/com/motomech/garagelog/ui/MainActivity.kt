@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.motomech.garagelog.R
 import com.motomech.garagelog.data.Range
 import com.motomech.garagelog.data.Repo
+import com.motomech.garagelog.data.Routes
 import com.motomech.garagelog.data.activeId
 import com.motomech.garagelog.data.vehicle
 import com.motomech.garagelog.data.vehicleForAddress
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         Notifs.checkReminders(this)
+        Thread { Routes.prune(Repo.current) }.start()
     }
 
     /** From the "Tap to track this trip" notification: the app is in front now, so the trip can start. */
@@ -85,6 +87,8 @@ sealed interface Page {
     data class VehicleP(val vid: Long) : Page
     data class LinkP(val vid: Long?) : Page
     data object DataP : Page
+    data class TripP(val tripId: Long) : Page
+    data object RoutesP : Page
 }
 
 /** Shared UI actions so screens don't each need a long list of callbacks. */
@@ -118,7 +122,11 @@ fun AppUi() {
     LifecycleResumeEffect(Unit) { tick++; onPauseOrDispose { } }
     BackHandler(page != null) {
         val p = page
-        page = if (p is Page.LinkP && p.vid != null) Page.VehicleP(p.vid) else null
+        page = when {
+            p is Page.LinkP && p.vid != null -> Page.VehicleP(p.vid)
+            p is Page.TripP -> d.trips.firstOrNull { it.id == p.tripId }?.let { Page.VehicleP(it.vid) }
+            else -> null
+        }
     }
     BackHandler(page == null && tab != Tab.GARAGE) { tab = Tab.GARAGE }
 
@@ -181,6 +189,8 @@ fun AppUi() {
                     is Page.VehicleP -> VehicleScreen(d, p.vid)
                     is Page.LinkP -> LinkScreen(d, p.vid)
                     Page.DataP -> DataScreen(d)
+                    is Page.TripP -> TripScreen(d, p.tripId)
+                    Page.RoutesP -> RoutesScreen(d)
                     null -> when (tab) {
                         Tab.GARAGE -> GarageScreen(d)
                         Tab.FUEL -> if (fv == null) NoVehicles() else FuelScreen(d, fv) { fuelVid = it }

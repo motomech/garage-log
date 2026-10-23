@@ -252,7 +252,10 @@ fun VehicleScreen(d: AppData, vid: Long) {
                 TripKind.MANUAL -> "Mileage reading" to "entered by hand"
                 else -> "Odometer corrected" to "set to ${mi(t.odo)}"
             }
-            ListRow(title, "${relday(t.date)} · $how", "${fmtSigned(t.miles)} mi", first = i == 0, onClick = { tripToDelete = t })
+            // Bluetooth trips open their map page; readings and corrections can only be removed.
+            ListRow(title, "${relday(t.date)} · $how", "${fmtSigned(t.miles)} mi", first = i == 0,
+                onClick = { if (t.kind == TripKind.AUTO) nav.open(Page.TripP(t.id)) else tripToDelete = t },
+                leading = { if (t.kind == TripKind.AUTO) RouteThumb(t.id) })
         }
     }
     tripToDelete?.let { t ->

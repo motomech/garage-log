@@ -22,6 +22,7 @@ object Repo {
     fun init(context: Context) {
         if (loaded) return
         file = File(context.applicationContext.filesDir, "garage.json")
+        Routes.init(context)
         if (file.exists()) {
             runCatching { _data.value = json.decodeFromString(AppData.serializer(), file.readText()) }
                 .onFailure { file.copyTo(File(file.parentFile, "garage-unreadable-${System.currentTimeMillis()}.json")) }
@@ -174,7 +175,8 @@ fun AppData.endTrip(endLat: Double? = null, endLon: Double? = null, now: Long = 
     val nv = v.copy(odo = v.odo + miles)
     val stop = if (lat != null && lon != null) LastStop(v.id, lat, lon, now) else lastStop
     return replaceVehicle(nv).copy(trip = null, lastStop = stop).withNewId { id ->
-        copy(trips = trips + Trip(id, v.id, today(), miles, nv.odo, TripKind.AUTO, t.startLat, t.startLon, lat, lon))
+        copy(trips = trips + Trip(id, v.id, today(), miles, nv.odo, TripKind.AUTO, t.startLat, t.startLon, lat, lon,
+            start = t.startedAt, end = now))
     }
 }
 

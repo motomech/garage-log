@@ -22,6 +22,8 @@ import com.google.android.gms.location.Priority
 import com.motomech.garagelog.R
 import com.motomech.garagelog.data.PumpWait
 import com.motomech.garagelog.data.Repo
+import com.motomech.garagelog.data.RoutePoint
+import com.motomech.garagelog.data.Routes
 import com.motomech.garagelog.data.addTripMiles
 import com.motomech.garagelog.data.endTrip
 import com.motomech.garagelog.data.mi1
@@ -41,6 +43,7 @@ class TripService : Service() {
     private var last: Location? = null
     private var latest: Location? = null // newest good fix, moving or not: where the trip ends
     private var pendingMeters = 0.0
+    private val routeBuf = mutableListOf<RoutePoint>() // route points not written to disk yet
     private var tracking = false
 
     private val callback = object : LocationCallback() {
@@ -61,7 +64,10 @@ class TripService : Service() {
             ACTION_START -> {
                 val vid = intent.getLongExtra(EXTRA_VID, -1)
                 val addr = intent.getStringExtra(EXTRA_ADDR) ?: ""
-                if (Repo.current.vehicle(vid) != null) Repo.update { it.copy(pumpWait = null).startTrip(vid, addr, System.currentTimeMillis()) }
+                if (Repo.current.vehicle(vid) != null && Repo.current.trip == null) {
+                    Routes.begin()
+                    Repo.update { it.copy(pumpWait = null).startTrip(vid, addr, System.currentTimeMillis()) }
+                }
             }
             // null intent: the system restarted us after killing the process; carry on with the saved trip.
         }
@@ -104,17 +110,24 @@ class TripService : Service() {
         if (latest == null) Repo.update { it.setTripPoint(loc.latitude, loc.longitude) } // the trip's start point
         latest = loc
         val prev = last
-        if (prev == null) { last = loc; return }
+        if (prev == null) { last = loc; keepPoint(loc); return }
         val d = prev.distanceTo(loc).toDouble()
         val secs = (loc.elapsedRealtimeNanos - prev.elapsedRealtimeNanos) / 1e9
         if (d < MIN_STEP_M) return // standing still, or GPS wander
         if (secs > 0 && d / secs > MAX_SPEED_MPS) { last = loc; return } // a jump, not driving
         pendingMeters += d
         last = loc
+        keepPoint(loc)
         if (pendingMeters >= FLUSH_M) flush()
     }
 
+    private fun keepPoint(loc: Location) {
+        if (Repo.current.routes.save) routeBuf += RoutePoint(loc.latitude, loc.longitude, loc.time / 1000)
+    }
+
     private fun flush() {
+        Routes.add(routeBuf)
+        routeBuf.clear()
         if (pendingMeters <= 0) return
         val miles = pendingMeters / METERS_PER_MILE
         pendingMeters = 0.0
@@ -147,6 +160,7 @@ class TripService : Service() {
         val toLat = saved?.toLat
         val toLon = saved?.toLon
         if (saved != null && toLat != null && toLon != null) StopWorker.enqueue(this, saved.id, toLat, toLon, ask)
+        Routes.finish(saved?.id)
         Notifs.checkReminders(this)
         last = null; latest = null; pendingMeters = 0.0
     }
@@ -163,6 +177,7 @@ class TripService : Service() {
 
     private fun resumeAfterFuel() {
         val w = Repo.current.pumpWait ?: return
+        Routes.begin()
         Repo.update { it.copy(pumpWait = null).startTrip(w.vid, w.address, System.currentTimeMillis()) }
         last = null; latest = null; pendingMeters = 0.0
         updateNotification()
@@ -276,7 +291,9 @@ class TripService : Service() {
                 context.startService(Intent(context, TripService::class.java).setAction(ACTION_END))
             } catch (e: Exception) {
                 // Service not running and we're in the background: end the trip directly.
+                val before = Repo.current
                 Repo.update { it.endTrip() }
+                Routes.finish(Repo.current.trips.lastOrNull()?.takeIf { it.id >= before.nextId }?.id)
                 Notifs.checkReminders(context)
             }
         }

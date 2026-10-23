@@ -40,6 +40,8 @@ data class Trip(
     val toLon: Double? = null,
     val toStation: String? = null,
     val toAddr: String? = null,
+    val start: Long? = null, // epoch millis, Bluetooth trips only
+    val end: Long? = null,
 )
 
 @Serializable
@@ -168,6 +170,14 @@ data class AppData(
     val trip: ActiveTrip? = null,
     val pumpWait: PumpWait? = null,
     val notified: Set<String> = emptySet(),
+    val routes: RouteSettings = RouteSettings(),
+)
+
+/** Trip route recording. keepDays 0 means keep forever. */
+@Serializable
+data class RouteSettings(
+    val save: Boolean = true,
+    val keepDays: Int = 0,
 )
 
 val SERVICE_TYPES = listOf(
