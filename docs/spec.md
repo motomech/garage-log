@@ -84,6 +84,16 @@ Ron asked to open a completed trip and see the exact route on a map, and approve
 - **Effort:** about two days of app work. Shares the trip end point with the gas station feature.
 - **Later options:** color the route by speed, GPX export per trip, monthly map of all trips for a vehicle.
 
+## App updates (proposed 2026-10-23, waiting for Ron)
+
+Ron asked whether new versions can reach the phone without re-downloading the APK each time. Mock-up and options: `docs/app-updates.html` (working copy https://claude.ai/artifact/AzrL7LcfNjvLSuL6ing4yt).
+
+- **Android limit:** any app installed outside the Play Store updates through Android's own "Do you want to update this app?" screen, so at least one tap is needed (at least the first time).
+- **Options looked at:** (1) in-app update check against GitHub Releases (recommended); (2) Obtainium, a free app that watches the GitHub repo and offers updates, nothing to build, usable today; (3) Play Store internal testing, fully automatic updates but $25 account, ID check, a new private signing key (one uninstall, restore from the Drive backup) and Play's background location forms; (4) Firebase App Distribution, no better than (1) and needs a Firebase project.
+- **Recommended design (1):** the app asks GitHub for the latest release (public repo, no key) when opened (at most every 6 hours) and once a day in the background with the reminder check. Release tag 0.1.N matches the app's version code N. A newer one shows a card at the top of Garage ("Update ready: 0.1.N", what's new, Later / Update) and one notification. Update downloads the APK (about 25 MB) inside the app with progress, checks it carries the same signing key, and opens Android's install screen; data is kept. Installing closes the app, so the Update button waits while a trip is in progress. An "App updates" card on Import and export shows the installed version, a "Check every day" switch and "Check now". Needs the "install apps" permission; the first update asks Ron once to allow Garage Log as an install source. On Android 12+ later self-updates may go through without the tap; try it on Ron's phone.
+- **Release notes:** the build would turn on GitHub's generated release notes (merged pull request titles) so the card can say what changed.
+- **Effort:** about half a day of app work. No server.
+
 ## Open questions
 
 - MotoLog's CSV export format has not been reviewed yet (needed for import mapping).
