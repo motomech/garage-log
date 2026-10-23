@@ -2,7 +2,9 @@
 
 An Android app for tracking vehicle mileage, fuel, service, and costs across several vehicles. It replaces MotoLog with an original design and code.
 
-**Status:** mock-ups and a clickable simulator done, under review. The real Android app is not built yet.
+**Status:** version 0.1 of the real Android app is built (Kotlin + Jetpack Compose, in `app/`).
+
+**Install on your phone:** open https://github.com/motomech/garage-log/releases/latest/download/garage-log.apk on the phone, then tap the downloaded file. The first time, Android asks you to allow installs from your browser. New versions install over the old one and keep your data.
 
 ## What it does
 
@@ -12,7 +14,11 @@ An Android app for tracking vehicle mileage, fuel, service, and costs across sev
 - Service records with reminders by miles or date.
 - Parts log for parts bought outside a service (installed or on the shelf).
 - Cost totals by category and by vehicle.
-- CSV import and export.
+- CSV export (import waits until MotoLog's format is reviewed).
+
+## Building
+
+GitHub Actions (`.github/workflows/android.yml`) builds the APK on every push and publishes a release on pushes to `main`. To build locally: `./gradlew assembleRelease` with the Android SDK installed.
 
 ## Docs
 
