@@ -117,7 +117,7 @@ tr.rec td{background:var(--desk-chip)}
 
 <header class="intro">
   <h1>Bringing over your MotoLog data</h1>
-  <p>Built from your real export of the 67 Barracuda: 182 trips and 8 fill-ups. The app would read MotoLog's Excel reports directly, so there's no converting on the computer. Sample screens below; nothing is built yet.</p>
+  <p>Built from your real exports of the 67 Barracuda. MotoLog's Share export (Share.xlsx) holds everything in one file: the vehicle, 8 fill-ups with the odometer you typed, 182 trips and 11 bills ($1,857.65 of parts). That's the file to import; the Fuel and Trip reports are only a fallback. The app reads it directly, so there's no converting on the computer. Sample screens below; nothing is built yet.</p>
 </header>
 
 <section class="phones" aria-label="Mock-up screens">
@@ -130,9 +130,8 @@ tr.rec td{background:var(--desk-chip)}
         <p class="title">Import and export</p>
         <div class="card">
           <h3>Import from MotoLog</h3>
-          <span class="hint">In MotoLog, export each report as Excel (one file per report per vehicle), save them to the phone or Drive, then pick them here. You can pick several at once.</span>
-          <div class="file"><b>fuel-report.xlsx</b><span class="k">Fuel</span></div>
-          <div class="file"><b>trip-report.xlsx</b><span class="k">Trips</span></div>
+          <span class="hint">In MotoLog, use Share on each vehicle and save the Excel file to the phone or Drive, then pick it here. You can pick several vehicles at once.</span>
+          <div class="file"><b>Share.xlsx</b><span class="k">67 Barracuda</span></div>
           <div class="btns"><span class="btn">Add files</span><span class="btn p">Next</span></div>
         </div>
         <div class="card">
@@ -142,7 +141,7 @@ tr.rec td{background:var(--desk-chip)}
       </div>
       <div class="navbar"><span class="on">Garage</span><span>Fuel</span><span>Service</span><span>Parts</span><span>Costs</span></div>
     </div></div>
-    <p class="cap"><b>1. Pick the files.</b> The app recognizes each report from its title row (Fuel, Trips) and checks it's a MotoLog file.</p>
+    <p class="cap"><b>1. Pick the files.</b> The app recognizes MotoLog's sections (#Vehicle, #FillUp, #Trip, #Bill) and checks it's a MotoLog file.</p>
   </div>
 
   <div>
@@ -161,6 +160,7 @@ tr.rec td{background:var(--desk-chip)}
           <h3>What will be added</h3>
           <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Trips<span class="v">182 · 1,818 mi</span></div>
           <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Fill-ups<span class="v">8 · 72.9 gal</span></div>
+          <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Bills as parts<span class="v">11 · $1,858</span></div>
           <div class="rowx"><span class="ck"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>Business / Private tags<span class="v">68 / 114</span></div>
           <span class="hint">Jan 14, 2025 to Oct 18, 2026. Odometer will be set to 27,016 mi. Anything already in Garage Log is skipped.</span>
         </div>
@@ -176,7 +176,7 @@ tr.rec td{background:var(--desk-chip)}
       <div class="content">
         <span class="back">‹ Back</span>
         <p class="title">Fill-ups</p>
-        <span class="sub">MotoLog stores litres; shown here in gallons. Odometer comes from the trip log at the time of each fill-up.</span>
+        <span class="sub">Odometer is the one you typed in MotoLog. The Feb 14 '26 fill-up has none, so it takes the trip log's reading.</span>
         <div class="card" style="gap:0">
           <div class="fr"><span class="d">Mar 15 '25</span><span>Quick Fuel</span><span class="r">7.24 gal</span><span class="m">25,387 mi · $3.999 · partial · $28.97</span></div>
           <div class="fr"><span class="d">Mar 29 '25</span><span>Quick Fuel</span><span class="r">11.91 gal</span><span class="m">25,571 mi · $2.990 · full · $35.60</span></div>
@@ -205,6 +205,7 @@ tr.rec td{background:var(--desk-chip)}
           <div class="rowx">Trips added<span class="v">182</span></div>
           <div class="rowx">Fill-ups added<span class="v">8</span></div>
           <div class="rowx">Skipped (already there)<span class="v">0</span></div>
+          <div class="rowx">Parts added<span class="v">11</span></div>
           <div class="rowx">Fuel cost<span class="v">$247.60</span></div>
         </div>
         <div class="card">
@@ -220,7 +221,32 @@ tr.rec td{background:var(--desk-chip)}
 </section>
 
 <article class="doc">
-  <h2>What's in the two files</h2>
+  <h2>The Share export (use this one)</h2>
+  <p>One sheet with sections, each starting with a # row and its own column headings. It's MotoLog's own data rather than a printed report, so values are in gallons and real odometer readings.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>MotoLog</th><th>Garage Log</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr class="rec"><td colspan="3"><b>#Vehicle</b>: name only</td></tr>
+      <tr><td>name</td><td>Vehicle name</td><td>Make, model, year, plate and VIN aren't in this file; they come from a Fuel or Trip report if you add one, or you type them.</td></tr>
+      <tr class="rec"><td colspan="3"><b>#FillUp</b> (8)</td></tr>
+      <tr><td>Date, Mileage</td><td>Date, odometer</td><td>Mileage 0 means not entered; the trip log fills it in.</td></tr>
+      <tr><td>Quantity 1, Unit 1, Price 1</td><td>Gallons, price per gallon</td><td>Litres converted if Unit says L. MotoLog allows up to 3 fuels per fill-up; extra ones are added together.</td></tr>
+      <tr><td>Full 1, After missed 1</td><td>Full tank, missed fill-up before</td><td>In your file "After missed" always matches "Full", which looks wrong (the Fuel report flags only Jun 27 '26). I'd trust the report's flag when both are given, and otherwise ignore this column.</td></tr>
+      <tr><td>Gas station name, description, latitude, longitude</td><td>Station name, address and location</td><td>The location lets the station link up with Garage Log's station lookup.</td></tr>
+      <tr><td>Note</td><td>Note</td><td></td></tr>
+      <tr class="rec"><td colspan="3"><b>#Trip</b> (182)</td></tr>
+      <tr><td>Start, End, Distance</td><td>Start and end time, miles</td><td>No odometer here; it's counted forward from the first fill-up reading.</td></tr>
+      <tr><td>Start, Through, Finish</td><td>From and to labels, stops in a note</td><td>No GPS track, so no route map.</td></tr>
+      <tr><td>Max speed, Average speed, Drive duration</td><td>Top speed, minutes</td><td>Shown on the trip page like recorded trips.</td></tr>
+      <tr><td>Tags</td><td>Trip tag</td><td>See question 1.</td></tr>
+      <tr><td>Username, Email</td><td>Not stored</td><td></td></tr>
+      <tr class="rec"><td colspan="3"><b>#Bill</b> (11, $1,857.65)</td></tr>
+      <tr><td>Date, Mileage, Item name, quantity, price</td><td>Parts (name, qty, cost, date, odometer)</td><td>All 11 are parts for the car (rear axle shafts, starter, brake lines...). One bill with several items becomes several parts. Mileage 0 means none was entered.</td></tr>
+      <tr><td>Revenue = Yes</td><td>Skipped</td><td>Revenues are left out for now. None in your file.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>What's in the Fuel and Trip reports</h2>
   <p>Each file covers one vehicle. The top row holds the vehicle (name, make, model, year, displacement, plate, VIN), then the report name, the date range, the column headings and one row per entry, with a Total row at the bottom.</p>
 
   <h2>How each column lands in Garage Log</h2>
@@ -252,7 +278,7 @@ tr.rec td{background:var(--desk-chip)}
 
   <h2>Questions for you</h2>
   <div class="q"><b>1. Do you use the Business / Private tags?</b><span>68 of your 182 trips are tagged Business (642 mi). My suggestion: keep the tag on each trip and show business miles per year on the Costs tab, which is what you'd need for taxes or reimbursement. Rates and reimbursement amounts can wait. If you never use it, I'll drop the tags.</span></div>
-  <div class="q"><b>2. Do you have service, expense or parts records in MotoLog?</b><span>These two files have none. If MotoLog has Service, Expenses or Parts reports, export one as Excel and send it, so the import can read those too.</span></div>
+  <div class="q"><b>2. Bills: parts or expenses?</b><span>All 11 bills are parts you bought for the Barracuda, so I'd import them into the Parts tab as installed. Other cars' bills might be insurance or tags; the preview could let you switch a bill to an expense.</span></div>
   <div class="q"><b>3. Your other vehicles?</b><span>Each file is one vehicle. Export the same reports for each vehicle; you can pick all of them in one go.</span></div>
 </article>
 
