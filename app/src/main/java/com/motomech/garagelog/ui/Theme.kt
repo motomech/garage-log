@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Color
 data class GColors(
     val bg: Color, val card: Color, val line: Color, val ink: Color, val muted: Color, val chip: Color,
     val accent: Color, val okBg: Color, val ok: Color, val warnBg: Color, val warn: Color, val badBg: Color, val bad: Color,
-    val catFuel: Color, val catService: Color, val catParts: Color, val catOther: Color,
+    val catFuel: Color, val catService: Color, val catParts: Color, val catBills: Color, val catOther: Color,
 )
 
 private val Light = GColors(
@@ -23,7 +23,7 @@ private val Light = GColors(
     muted = Color(0xFF5E5B54), chip = Color(0xFFECE8DD), accent = Color(0xFFC2410C),
     okBg = Color(0xFFD9EFEC), ok = Color(0xFF0B5E57), warnBg = Color(0xFFFBE6DA), warn = Color(0xFF9A3412),
     badBg = Color(0xFFF8D7D3), bad = Color(0xFF9B1C1C),
-    catFuel = Color(0xFFC2410C), catService = Color(0xFF0B5E57), catParts = Color(0xFF3B5B8C), catOther = Color(0xFF7A6F5A),
+    catFuel = Color(0xFFC2410C), catService = Color(0xFF0B5E57), catParts = Color(0xFF3B5B8C), catBills = Color(0xFF7A4E8C), catOther = Color(0xFF7A6F5A),
 )
 
 private val Dark = GColors(
@@ -31,7 +31,7 @@ private val Dark = GColors(
     muted = Color(0xFFA8A396), chip = Color(0xFF2C2B31), accent = Color(0xFFF07A3E),
     okBg = Color(0xFF173B37), ok = Color(0xFF7FD3C8), warnBg = Color(0xFF4A2A18), warn = Color(0xFFF5B48A),
     badBg = Color(0xFF4A1C1C), bad = Color(0xFFF4A3A3),
-    catFuel = Color(0xFFF07A3E), catService = Color(0xFF3FB3A6), catParts = Color(0xFF7C9CD0), catOther = Color(0xFFB3A688),
+    catFuel = Color(0xFFF07A3E), catService = Color(0xFF3FB3A6), catParts = Color(0xFF7C9CD0), catBills = Color(0xFFBF97D1), catOther = Color(0xFFB3A688),
 )
 
 val LocalG = staticCompositionLocalOf { Light }

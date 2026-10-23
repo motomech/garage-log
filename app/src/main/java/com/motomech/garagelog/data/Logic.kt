@@ -108,12 +108,16 @@ fun AppData.vehicleDocs(vid: Long): List<Doc> =
 
 data class FuelRow(val f: FuelEntry, val mpg: Double?)
 
-/** Fill-ups oldest first, with MPG worked out between full tanks (partials roll into the next full one). */
+/**
+ * Fill-ups oldest first, with MPG worked out between full tanks (partials roll into the next full one).
+ * A fill-up marked missed starts over: the fuel of the one that wasn't logged is unknown.
+ */
 fun AppData.fuelRows(vid: Long): List<FuelRow> {
     val rows = fuel.filter { it.vid == vid }.sortedBy { it.odo }
     var prev: FuelEntry? = null
     var gSince = 0.0
     return rows.map { f ->
+        if (f.missed) { prev = null; gSince = 0.0 }
         gSince += f.gal
         val mpg = if (prev != null && f.full && gSince > 0) (f.odo - prev!!.odo) / gSince else null
         if (f.full) { prev = f; gSince = 0.0 }
@@ -143,6 +147,7 @@ fun Range.start(): String = when (this) {
 const val CAT_FUEL = "Fuel"
 const val CAT_SERVICE = "Service and repairs"
 const val CAT_PARTS = "Parts"
+const val CAT_BILLS = "Bills"
 const val CAT_OTHER = "Other"
 
 data class CostItem(val cat: String, val amt: Double, val vid: Long, val sub: String? = null)
@@ -155,7 +160,9 @@ fun AppData.costItems(vid: Long?, start: String): List<CostItem> {
         fuel.filter { ok(it.vid, it.date) }.forEach { add(CostItem(CAT_FUEL, it.total, it.vid)) }
         service.filter { ok(it.vid, it.date) }.forEach { add(CostItem(CAT_SERVICE, it.cost, it.vid)) }
         parts.filter { ok(it.vid, it.date) }.forEach { add(CostItem(CAT_PARTS, it.cost, it.vid)) }
-        expenses.filter { ok(it.vid, it.date) }.forEach { add(CostItem(CAT_OTHER, it.cost, it.vid, it.cat)) }
+        expenses.filter { ok(it.vid, it.date) }.forEach {
+            add(if (it.cat == CAT_BILLS) CostItem(CAT_BILLS, it.cost, it.vid) else CostItem(CAT_OTHER, it.cost, it.vid, it.cat))
+        }
     }
 }
 

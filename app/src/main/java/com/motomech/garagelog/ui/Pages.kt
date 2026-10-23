@@ -55,6 +55,19 @@ import com.motomech.garagelog.data.toCsv
 import com.motomech.garagelog.data.today
 import com.motomech.garagelog.data.vehicle
 import com.motomech.garagelog.data.Level
+import com.motomech.garagelog.data.MlChoice
+import com.motomech.garagelog.data.MlResult
+import com.motomech.garagelog.data.MlVehicle
+import com.motomech.garagelog.data.MotoLog
+import com.motomech.garagelog.data.Xlsx
+import com.motomech.garagelog.data.importMotoLog
+import com.motomech.garagelog.data.mi
+import com.motomech.garagelog.data.mi1
+import com.motomech.garagelog.data.motoLogMatch
+import com.motomech.garagelog.data.usd
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import com.motomech.garagelog.data.relday
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -264,9 +277,101 @@ fun DataScreen(d: AppData) {
             colors = ButtonDefaults.buttonColors(containerColor = G.accent)) { Text("Export CSV") }
         Hint("You choose where to save it: Downloads, Google Drive, or anywhere else the phone offers.")
     }
+    MotoLogCard(d)
+}
+
+/* ---------------- Import from MotoLog ---------------- */
+
+@Composable
+private fun MotoLogCard(d: AppData) {
+    val nav = LocalNav.current
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    var found by remember { mutableStateOf<List<MlVehicle>>(emptyList()) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    var done by remember { mutableStateOf<List<Pair<String, MlResult>>>(emptyList()) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        busy = true; problem = null; done = emptyList()
+        scope.launch {
+            val r = withContext(Dispatchers.IO) {
+                runCatching {
+                    MotoLog.read(uris.map { u ->
+                        ctx.contentResolver.openInputStream(u)?.use { Xlsx.firstSheet(it) } ?: throw IllegalArgumentException("Couldn't open a file.")
+                    })
+                }
+            }
+            busy = false
+            r.onSuccess { found = it }.onFailure {
+                found = emptyList()
+                problem = (it as? IllegalArgumentException)?.message ?: "Couldn't read those files. Pick the Excel (.xlsx) files MotoLog exported."
+            }
+        }
+    }
+
     GCard {
-        H2("Import from CSV")
-        Note("Coming next: import waits until we've looked at MotoLog's export format, so the columns map correctly.", null)
+        H2("Import from MotoLog")
+        if (found.isEmpty()) {
+            Hint("In MotoLog, open the vehicle, tap Share and save the Excel file to the phone or Google Drive. Then pick it here. " +
+                "You can pick several vehicles at once, and add the Fuel and Trip reports for make, model, plate and VIN.")
+            problem?.let { Note(it, Level.WARN) }
+            done.forEach { (name, r) ->
+                Note("$name: added ${r.trips} trips, ${r.fills} fill-ups and ${r.bills} bills" +
+                    (if (r.skipped > 0) ". Skipped ${r.skipped} already in Garage Log." else "."), Level.OK)
+                TextButton(onClick = { nav.open(Page.VehicleP(r.vid)) }) { Text("Open $name", color = G.accent) }
+            }
+            Button(onClick = { pick.launch(arrayOf("*/*")) }, enabled = !busy, modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = G.accent)) { Text(if (busy) "Reading…" else "Pick MotoLog files") }
+        }
+    }
+    found.forEach { m ->
+        MotoLogPreview(d, m, onSkip = { found = found - m }) { target, choice ->
+            var res: MlResult? = null
+            Repo.update { val (next, r) = it.importMotoLog(m, target, choice); res = r; next }
+            res?.let { done = done + (m.name to it) }
+            found = found - m
+            nav.toast("Imported ${m.name}")
+        }
+    }
+}
+
+@Composable
+private fun MotoLogPreview(d: AppData, m: MlVehicle, onSkip: () -> Unit, onImport: (Long?, MlChoice) -> Unit) {
+    var target by remember(m) { mutableStateOf(d.motoLogMatch(m)) }
+    var c by remember(m) { mutableStateOf(MlChoice()) }
+    val fmt = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
+    GCard {
+        H2(m.name)
+        Sub(listOf(m.year, m.make, m.plate).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "From MotoLog" })
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Sub("Import into", Modifier.weight(1f))
+            ImportTarget(d, target) { target = it }
+        }
+        Check("Trips (${m.trips.size}, ${mi(m.trips.sumOf { it.miles })} mi)", c.trips) { c = c.copy(trips = it) }
+        Check("Fill-ups (${m.fills.size}, ${mi1(m.fills.sumOf { it.gal })} gal)", c.fuel) { c = c.copy(fuel = it) }
+        Check("Bills (${m.bills.size}, ${usd(m.bills.sumOf { it.cost })})", c.bills) { c = c.copy(bills = it) }
+        val first = m.first; val last = m.last
+        if (first != null && last != null) Hint("${first.format(fmt)} to ${last.format(fmt)}. Bills go to Costs under Bills. " +
+            "Anything already in Garage Log is skipped, so importing again adds nothing twice.")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GhostButton("Skip", Modifier.weight(1f), onSkip)
+            Button(onClick = { onImport(target, c) }, enabled = c.trips || c.fuel || c.bills, modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = G.accent)) { Text("Import") }
+        }
+    }
+}
+
+/** A new vehicle (null) or one already in the garage. */
+@Composable
+private fun ImportTarget(d: AppData, vid: Long?, onPick: (Long?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) { Text((d.vehicle(vid)?.label ?: "New vehicle") + "  ▾", color = G.ink, fontWeight = FontWeight.SemiBold) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text("New vehicle") }, onClick = { open = false; onPick(null) })
+            d.vehicles.forEach { v -> DropdownMenuItem(text = { Text(v.label) }, onClick = { open = false; onPick(v.id) }) }
+        }
     }
 }
 

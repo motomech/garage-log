@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.motomech.garagelog.R
 import com.motomech.garagelog.data.AppData
 import com.motomech.garagelog.data.CAT_FUEL
+import com.motomech.garagelog.data.CAT_BILLS
 import com.motomech.garagelog.data.CAT_OTHER
 import com.motomech.garagelog.data.CAT_PARTS
 import com.motomech.garagelog.data.CAT_SERVICE
@@ -447,7 +448,7 @@ fun CostsScreen(d: AppData, vid: Long?, range: Range, onPick: (Long?) -> Unit, o
     val start = range.start()
     val items = d.costItems(vid, start)
     val tot = items.sumOf { it.amt }
-    val cats = listOf(CAT_FUEL to G.catFuel, CAT_SERVICE to G.catService, CAT_PARTS to G.catParts, CAT_OTHER to G.catOther)
+    val cats = listOf(CAT_FUEL to G.catFuel, CAT_SERVICE to G.catService, CAT_PARTS to G.catParts, CAT_BILLS to G.catBills, CAT_OTHER to G.catOther)
         .map { (c, col) -> Triple(c, col, items.filter { it.cat == c }.sumOf { it.amt }) }
     Row(verticalAlignment = Alignment.CenterVertically) {
         ScreenTitle("Costs", modifier = Modifier.weight(1f))
@@ -492,7 +493,7 @@ fun CostsScreen(d: AppData, vid: Long?, range: Range, onPick: (Long?) -> Unit, o
     }
     val other = d.expenses.filter { (vid == null || it.vid == vid) && it.date >= start }.sortedByDescending { it.date }
     if (other.isNotEmpty()) {
-        H2("Other expenses")
+        H2("Expenses and bills")
         ListBox {
             other.forEachIndexed { i, e ->
                 ListRow(e.cat + if (e.desc.isNotBlank()) ": ${e.desc}" else "",

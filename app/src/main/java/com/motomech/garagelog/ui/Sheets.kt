@@ -214,6 +214,7 @@ private fun FuelForm(d: AppData, req: SheetReq.Fuel, onClose: () -> Unit) {
     var gal by remember { mutableStateOf(e?.gal?.plain() ?: "") }
     var price by remember { mutableStateOf(e?.price?.let { money(it) } ?: lastPrice(d)) }
     var full by remember { mutableStateOf(e?.full ?: true) }
+    var missed by remember { mutableStateOf(e?.missed ?: false) }
 
     SheetTitle(if (e == null) "Log fill-up" else "Edit fill-up")
     VehicleField(d, vid, e != null) {
@@ -238,10 +239,11 @@ private fun FuelForm(d: AppData, req: SheetReq.Fuel, onClose: () -> Unit) {
     else SuggestField("Gas station", station, d.fuel.map { it.station }.filter { it.isNotBlank() }.distinct(),
         { station = it; stationAddr = "" }, Modifier.fillMaxWidth())
     CheckRow("Filled the tank (needed for MPG)", full) { full = it }
+    CheckRow("Missed logging the fill-up before this", missed) { missed = it }
     PrimaryButton(if (e == null) "Save fill-up" else "Save changes") {
         val o = odo.toNum()
         if (g == null || g <= 0 || p == null || o == null) { nav.toast("Enter odometer, gallons and price."); return@PrimaryButton }
-        Repo.update { it.saveFuel(FuelEntry(e?.id ?: 0, vid, date, o, g, p, full, station.trim(), stationAddr)) }
+        Repo.update { it.saveFuel(FuelEntry(e?.id ?: 0, vid, date, o, g, p, full, station.trim(), stationAddr, missed)) }
         val restart = e == null && Repo.current.pumpWait != null
         TripService.resumeAfterFuel(ctx)
         nav.toast(if (restart) "Fill-up saved · next trip started" else "Fill-up saved"); onClose()
