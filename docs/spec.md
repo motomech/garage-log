@@ -29,6 +29,19 @@ Working name. Process: talk ideas through, review mock-ups, refine until agreed,
 5. CSV import and export (column mapping, skip duplicates)
 6. Parts log: parts bought outside a service (part, part number, store, qty, cost). Marked installed (with odometer) or "on the shelf" for spares. Has its own tab in the bottom bar (Garage, Fuel, Service, Parts, Costs), counts as its own category in Costs, and is included in CSV export (added 2026-10-23; own tab per Ron).
 
+## Proposal: gas station detection and saved places (2026-10-23, not agreed yet)
+
+Ron asked for the app to know which gas station he filled up at, and to save places like Home and Work so it knows when he has been there. Shown in the simulator (Where you stop panel, Places screen behind the pin button on Garage, and the Log fill-up sheet).
+
+- **Recommended approach:** use the spot where the trip ended (the last GPS point when the car's Bluetooth disconnects). The car is off at the pump, so that spot is the station. If it is not a saved place, the app asks for gas stations within about 100 m. On a match it shows "At Murphy USA? Tap to log a fill-up", which opens the fill-up form with the station filled in. Opening Log fill-up by hand does the same lookup from the last stop (same day) or from where the phone is now, picks the closest station within about 0.1 mi as the best match, and lists others within 1.5 mi plus "Not listed or skip" with a typed name.
+- **Saved places:** name a spot (Home, Work, Gym...) with a radius (100 to 500 m). Trips are labeled "Home → Work", the Places screen shows last visit and visits in 30 days, and unsaved spots you stop at are listed with a Save button. No station lookup at saved places.
+- **Station data:** OpenStreetMap through the Overpass API. Free, no account or API key (important because the repo is public), good coverage of US stations with brand names. Fallback if coverage disappoints: Google Places (better data, but needs a Google Cloud account with a card on file and an API key; personal use stays inside the free monthly allowance).
+- **Battery:** no extra cost. GPS already runs during trips; this adds one small web request per trip end that is not at a saved place. Nothing runs between trips.
+- **Privacy:** places, trips and stations stay on the phone. Only the stop's coordinates go to the station lookup, with no account.
+- **Data:** fill-ups get station name and address (shown in the fuel list, added to CSV export). Trips get start and end spots.
+- **Not covered:** fill-ups where the engine stays running (no Bluetooth disconnect). Could later detect a 3+ minute stop at a station during a trip.
+- **Effort:** moderate, about two to three days of app work. No server needed.
+
 ## Interactive simulator
 
 Clickable prototype with sample data and simulated Bluetooth trips (review only, not the real app). Public copy: https://motomech.github.io/garage-log/ (GitHub Pages, from docs/index.html). Working copy: https://claude.ai/artifact/M3nJafop3ksKF29B9PwC9S
