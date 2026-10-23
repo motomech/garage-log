@@ -85,6 +85,25 @@ fun AppData.remStatus(r: Reminder): RemStatus {
 fun AppData.vehicleReminders(vid: Long): List<Pair<Reminder, RemStatus>> =
     reminders.filter { it.vid == vid }.map { it to remStatus(it) }.sortedBy { it.second.rank }
 
+/* ---------- documents ---------- */
+
+private val monthYear = DateTimeFormatter.ofPattern("MMM yyyy", US)
+
+/** Expiry badge for a document; null when it has no expiry date. Warns 30 days ahead. */
+fun docStatus(doc: Doc): Pair<Level, String>? {
+    val e = doc.expires ?: return null
+    val left = daysBetween(today(), e)
+    return when {
+        left < 0 -> Level.BAD to "Expired ${fdate(e)}"
+        left == 0L -> Level.BAD to "Expires today"
+        left <= 30 -> Level.WARN to "Expires in $left day${if (left == 1L) "" else "s"}"
+        else -> Level.OK to "Good to ${parseDate(e).format(monthYear)}"
+    }
+}
+
+fun AppData.vehicleDocs(vid: Long): List<Doc> =
+    docs.filter { it.vid == vid }.sortedWith(compareBy({ DOC_TYPES.indexOf(it.type).let { i -> if (i < 0) 99 else i } }, { it.label.lowercase() }))
+
 /* ---------- fuel ---------- */
 
 data class FuelRow(val f: FuelEntry, val mpg: Double?)

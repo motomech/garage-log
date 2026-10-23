@@ -242,6 +242,8 @@ fun VehicleScreen(d: AppData, vid: Long) {
             }
         }
     }
+    VehicleDetails(v)
+    VehicleDocuments(d, v)
     H2(if (v.btAddress != null) "Trips" else "Mileage log")
     val trips = d.trips.filter { it.vid == v.id }.sortedWith(compareByDescending<Trip> { it.date }.thenByDescending { it.id }).take(30)
     ListBox {

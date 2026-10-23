@@ -19,6 +19,8 @@ import androidx.work.WorkerParameters
 import com.motomech.garagelog.R
 import com.motomech.garagelog.data.Level
 import com.motomech.garagelog.data.Repo
+import com.motomech.garagelog.data.docStatus
+import com.motomech.garagelog.data.vehicle
 import com.motomech.garagelog.data.markNotified
 import com.motomech.garagelog.data.vehicleReminders
 import com.motomech.garagelog.ui.MainActivity
@@ -31,6 +33,8 @@ object Notifs {
     const val ID_TRIP = 1
     const val ID_TRIP_DONE = 2
     const val ID_START_FAILED = 3
+    const val ID_BACKUP_FAILED = 4
+    private const val ID_DOC_BASE = 100_000
     private const val ID_REMINDER_BASE = 1000
 
     fun createChannels(context: Context) {
@@ -39,8 +43,8 @@ object Notifs {
             NotificationChannel(CH_TRIP, "Trip in progress", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "Shown while a trip is being measured"
             },
-            NotificationChannel(CH_REMIND, "Service reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "Service due soon or overdue"
+            NotificationChannel(CH_REMIND, "Service and document reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Service due soon or overdue, registration or insurance about to expire"
             },
             NotificationChannel(CH_ALERT, "Trips and tracking", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Trip finished, or tracking needs your attention"
@@ -89,6 +93,21 @@ object Notifs {
                     "${v.label} · ${st.text}",
                 )
             }
+        }
+        // Documents with an expiry date: once when 30 days are left, once when it has expired.
+        Repo.current.docs.forEach { doc ->
+            if (!doc.remind) return@forEach
+            val (level, text) = docStatus(doc) ?: return@forEach
+            if (level == Level.OK) return@forEach
+            val key = "doc:${doc.id}:${doc.expires}:$level"
+            if (key in Repo.current.notified) return@forEach
+            Repo.update { it.markNotified(key) }
+            val v = Repo.current.vehicle(doc.vid)
+            post(
+                context, ID_DOC_BASE + doc.id.toInt(), CH_REMIND,
+                doc.label + if (level == Level.BAD) " has expired" else " expires soon",
+                listOfNotNull(v?.label, text).joinToString(" · "),
+            )
         }
     }
 
