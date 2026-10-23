@@ -43,6 +43,20 @@ Clickable prototype with sample data and simulated Bluetooth trips (review only,
 6. Import and export
 7. Link a vehicle (pick the Bluetooth device)
 
+## Proposal: trip route map (2026-10-23, not agreed yet)
+
+Ron asked to open a completed trip and see the exact route on a map. Mock-up: `docs/route-map.html` (https://motomech.github.io/garage-log/route-map.html once merged; working copy https://claude.ai/artifact/W89KADaU9av6EhJQV9PWQ2).
+
+- **Today (v0.1):** routes are not kept. TripService reads GPS every 2 to 4 seconds, adds up the distance and discards the points; a saved trip has only date, miles and odometer. Keeping the points is a small change. Trips recorded before it have no map.
+- **Screens:** the trip list gets a small route preview per trip; tapping a trip opens a trip map with the route, start and end pins named after saved places or the gas station (same labels as the gas station and saved places proposal), start and end times, minutes, average and top speed, odometer before and after, "Log fill-up here" when the trip ended at a station, "Save this spot as a place" for unsaved end spots, and "Delete route (keep the miles)". Settings: Save trip routes on/off, keep routes Forever / 1 year / 90 days, space used, Delete all routes, clear downloaded map images.
+- **Recommended map:** MapLibre Native for Android with OpenFreeMap tiles (OpenStreetMap data). Free, no account, no API key, no usage limit, nothing secret in the public repo. Adds about 8 MB to the APK.
+- **Alternatives:** osmdroid (free, no key, but older raster look and in maintenance mode; OpenStreetMap's own tile servers ask apps to keep use light). Google Maps SDK (map views in Android apps cost nothing, but it needs a Google Cloud account with a card and an API key; the key ships inside the APK and restricting it to the app is weak because the signing key is in the public repo). Worth it only if satellite view matters.
+- **Storage:** keep a point only after the car has moved, simplify straight stretches at trip end (about 10 to 20 points per mile, roughly 200 bytes per mile, about 3 MB per 15,000 miles). Routes are stored in their own file(s), not in the main data JSON, and are included in Android backup (25 MB app limit). Map images are cached separately, capped, and can be cleared.
+- **Battery:** no extra cost while driving, since GPS already runs for every trip. Opening a map downloads map images for that area (a few hundred KB the first time). Nothing runs between trips.
+- **Privacy:** routes stay on the phone. The tile server only sees which map area is requested when a map is opened.
+- **Effort:** about two days of app work. Shares the trip end point with the gas station feature.
+- **Later options:** color the route by speed, GPX export per trip, monthly map of all trips for a vehicle.
+
 ## Open questions
 
 - MotoLog's CSV export format has not been reviewed yet (needed for import mapping).
